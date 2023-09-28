@@ -9,6 +9,12 @@ fn test_empty_array() {
 }
 
 #[test]
+fn test_one_empty_string() {
+    let res = serde_zipson::de::from_str::<Value>(vec![ARRAY_START_TOKEN.to_string(), STRING_TOKEN.to_string(), "".to_string(), STRING_TOKEN.to_string(), ARRAY_END_TOKEN.to_string()].join("").as_str());
+    assert_eq!(res.unwrap(), Value::Array(vec![Value::String("".into())]));
+}
+
+#[test]
 fn test_one_string() {
     let res = serde_zipson::de::from_str::<Value>(vec![ARRAY_START_TOKEN.to_string(), STRING_TOKEN.to_string(), "string".to_string(), STRING_TOKEN.to_string(), ARRAY_END_TOKEN.to_string()].join("").as_str());
     assert_eq!(res.unwrap(), Value::Array(vec![Value::String("string".into())]));
