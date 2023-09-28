@@ -1,25 +1,12 @@
 use std::fmt;
 use serde::Deserialize;
-use serde::de::{self, Visitor};
-use crate::constants::{STRING_TOKEN};
+use serde::de::{self, DeserializeSeed, Visitor};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::Value;
 
 pub struct Deserializer<'de> {
     input: &'de str,
-}
-
-pub fn from_str<'a, T>(s: &'a str) -> Result<T>
-    where
-        T: Deserialize<'a>,
-{
-    let mut deserializer = Deserializer::from_str(s);
-    let t = T::deserialize(&mut deserializer)?;
-    if deserializer.input.is_empty() {
-        Ok(t)
-    } else {
-        Err(Error::TrailingCharacters)
-    }
 }
 
 impl<'de> Deserializer<'de> {
@@ -66,9 +53,22 @@ impl<'de> Deserialize<'de> for Value {
                 formatter.write_str("a string key")
             }
 
-            fn visit_borrowed_str<E>(self, str: &str) -> std::result::Result<Self::Value, E>
+            fn visit_borrowed_str<E>(self, str: &str) -> std::result::Result<Value, E>
             {
                 Ok(Value::String(str.into()))
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> std::result::Result<Value, V::Error>
+                where
+                    V: de::SeqAccess<'de>,
+            {
+                let mut vec = Vec::new();
+
+                while let Some(elem) = seq.next_element()? {
+                    vec.push(elem);
+                }
+
+                Ok(Value::Array(vec))
             }
         }
 
@@ -89,7 +89,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             // 't' | 'f' => self.deserialize_bool(visitor),
             // '0'..='9' => self.deserialize_u64(visitor),
             // '-' => self.deserialize_i64(visitor),
-            // ch if ch == ARRAY_START_TOKEN => self.deserialize_seq(visitor),
+            ch if ch == ARRAY_START_TOKEN => self.deserialize_seq(visitor),
             // '{' => self.deserialize_map(visitor),
             _ => Err(Error::Syntax),
         }
@@ -246,11 +246,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        let _ = self.next_char();
+        visitor.visit_seq(SeqAccess::new(self))
     }
 
     fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
@@ -315,5 +316,46 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             V: Visitor<'de>,
     {
         unimplemented!()
+    }
+}
+
+struct SeqAccess<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+}
+
+impl<'a, 'de: 'a> SeqAccess<'a, 'de> {
+    fn new(de: &'a mut Deserializer<'de>) -> Self {
+        SeqAccess { de }
+    }
+}
+
+impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
+    type Error = Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> std::result::Result<Option<T::Value>, Self::Error>
+        where T: DeserializeSeed<'de>
+    {
+        match self.de.peek_char()? {
+            ch if ch == ARRAY_END_TOKEN => {
+                self.de.next_char()?;
+                return Ok(None);
+            },
+            _ => {},
+        };
+
+        Ok(Some(seed.deserialize(&mut *self.de)?))
+    }
+}
+
+pub fn from_str<'a, T>(s: &'a str) -> Result<T>
+    where
+        T: Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_str(s);
+    let t = T::deserialize(&mut deserializer)?;
+    if deserializer.input.is_empty() {
+        Ok(t)
+    } else {
+        Err(Error::TrailingCharacters)
     }
 }
