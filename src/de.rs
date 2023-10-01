@@ -1,7 +1,7 @@
 use std::fmt;
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Visitor};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, ESCAPE_CHARACTER, STRING_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::Value;
 
@@ -24,17 +24,37 @@ impl<'de> Deserializer<'de> {
         Ok(ch)
     }
 
-    fn parse_string(&mut self) -> Result<&'de str> {
-        if self.next_char()? != STRING_TOKEN {
+    fn parse_string(&mut self) -> Result<String> {
+        let token = self.next_char()?;
+        if token != STRING_TOKEN && token != UNREFERENCED_STRING_TOKEN {
             return Err(Error::ExpectedString);
         }
-        match self.input.find(STRING_TOKEN) {
-            Some(len) => {
-                let s = &self.input[..len];
-                self.input = &self.input[len + STRING_TOKEN.len_utf8()..];
-                Ok(s)
+
+        let mut res: Vec<char> = vec![];
+
+        loop {
+            let mut ch = self.next_char()?;
+            let mut escaped = 0;
+
+            while ch == ESCAPE_CHARACTER {
+                escaped += 1;
+                ch = self.next_char()?;
             }
-            None => Err(Error::Eof),
+
+            if escaped > 0 {
+                for _ in 0..escaped / 2 {
+                    res.push(ESCAPE_CHARACTER);
+                }
+                if escaped % 2 == 1 && ch != token {
+                    return Err(Error::ExpectedEscapedToken)
+                }
+            }
+
+            if escaped % 2 == 0 && ch == token {
+                return Ok(String::from_iter(res).to_string());
+            }
+
+            res.push(ch);
         }
     }
 }
@@ -53,9 +73,9 @@ impl<'de> Deserialize<'de> for Value {
                 formatter.write_str("a string key")
             }
 
-            fn visit_borrowed_str<E>(self, str: &str) -> std::result::Result<Value, E>
+            fn visit_string<E>(self, str: String) -> std::result::Result<Value, E>
             {
-                Ok(Value::String(str.into()))
+                Ok(Value::String(str))
             }
 
             fn visit_seq<V>(self, mut seq: V) -> std::result::Result<Value, V::Error>
@@ -85,6 +105,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.peek_char()? {
             ch if ch == STRING_TOKEN => self.deserialize_str(visitor),
+            ch if ch == UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
             // 'n' => self.deserialize_unit(visitor),
             // 't' | 'f' => self.deserialize_bool(visitor),
             // '0'..='9' => self.deserialize_u64(visitor),
@@ -184,7 +205,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         where
             V: Visitor<'de>,
     {
-        visitor.visit_borrowed_str(self.parse_string()?)
+        visitor.visit_string(self.parse_string()?)
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>

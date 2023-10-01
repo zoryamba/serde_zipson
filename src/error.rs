@@ -30,6 +30,7 @@ pub enum Error {
     ExpectedArray,
     ExpectedArrayComma,
     ExpectedArrayEnd,
+    ExpectedEscapedToken,
     ExpectedMap,
     ExpectedMapColon,
     ExpectedMapComma,
