@@ -3,6 +3,11 @@ use serde_zipson::value::Value;
 use crate::de::test_parse;
 
 #[test]
+fn test_null() {
+    test_parse("§", Value::Null);
+}
+
+#[test]
 fn test_empty_string() {
     test_parse("¨¨", Value::String("".into()));
 }

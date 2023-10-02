@@ -21,3 +21,8 @@ fn test_one_short_string() {
 fn test_one_long_string() {
     test_parse("|¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨÷", Value::Array(vec![Value::String("aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into())]));
 }
+
+#[test]
+fn test_one_null() {
+    test_parse("|§÷", Value::Array(vec![Value::Null]));
+}

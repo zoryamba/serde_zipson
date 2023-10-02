@@ -1,7 +1,7 @@
 use std::fmt;
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Visitor};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, ESCAPE_CHARACTER, STRING_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, ESCAPE_CHARACTER, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::Value;
 
@@ -90,6 +90,11 @@ impl<'de> Deserialize<'de> for Value {
 
                 Ok(Value::Array(vec))
             }
+
+            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+            {
+                Ok(Value::Null)
+            }
         }
 
         deserializer.deserialize_any(ValueVisitor)
@@ -106,7 +111,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         match self.peek_char()? {
             ch if ch == STRING_TOKEN => self.deserialize_str(visitor),
             ch if ch == UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
-            // 'n' => self.deserialize_unit(visitor),
+            ch if ch == NULL_TOKEN => self.deserialize_unit(visitor),
             // 't' | 'f' => self.deserialize_bool(visitor),
             // '0'..='9' => self.deserialize_u64(visitor),
             // '-' => self.deserialize_i64(visitor),
@@ -236,12 +241,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!()
     }
 
-    // In Serde, unit means an anonymous value containing no data.
-    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.next_char()?;
+        visitor.visit_unit()
     }
 
     // Unit struct means a named value containing no data.
