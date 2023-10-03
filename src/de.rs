@@ -5,13 +5,23 @@ use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, ESCAPE_CHARACTER, NUL
 use crate::error::{Error, Result};
 use crate::value::Value;
 
+pub struct OrderedIndex {
+    strings: Vec<String>,
+}
+
 pub struct Deserializer<'de> {
     input: &'de str,
+    index: OrderedIndex
 }
 
 impl<'de> Deserializer<'de> {
     pub fn from_str(input: &'de str) -> Self {
-        Deserializer { input }
+        Self {
+            input,
+            index: OrderedIndex {
+                strings: vec![],
+            },
+        }
     }
 
     fn peek_char(&mut self) -> Result<char> {
@@ -30,7 +40,7 @@ impl<'de> Deserializer<'de> {
             return Err(Error::ExpectedString);
         }
 
-        let mut res: Vec<char> = vec![];
+        let mut chars: Vec<char> = vec![];
 
         loop {
             let mut ch = self.next_char()?;
@@ -43,7 +53,7 @@ impl<'de> Deserializer<'de> {
 
             if escaped > 0 {
                 for _ in 0..escaped / 2 {
-                    res.push(ESCAPE_CHARACTER);
+                    chars.push(ESCAPE_CHARACTER);
                 }
                 if escaped % 2 == 1 && ch != token {
                     return Err(Error::ExpectedEscapedToken)
@@ -51,11 +61,19 @@ impl<'de> Deserializer<'de> {
             }
 
             if escaped % 2 == 0 && ch == token {
-                return Ok(String::from_iter(res).to_string());
+                break;
             }
 
-            res.push(ch);
+            chars.push(ch);
         }
+
+        let res = String::from_iter(chars);
+
+        if token == STRING_TOKEN {
+            self.index.strings.push(res.clone());
+        }
+
+        Ok(res)
     }
 }
 
