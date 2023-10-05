@@ -1,10 +1,9 @@
 use indexmap::{IndexMap};
 
-type N = String;
-
 #[derive(Debug, PartialEq)]
-pub struct Number {
-    _n: N,
+pub enum Number {
+    Int(i64),
+    Float(f64)
 }
 
 #[derive(Debug, PartialEq)]

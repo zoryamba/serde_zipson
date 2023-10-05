@@ -1,5 +1,12 @@
 pub const ESCAPE_CHARACTER: char = '\\';
 
+
+pub const INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER: u8 = 191;
+pub const INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER: u8 = 211;
+pub const INTEGER_SMALL_TOKEN_OFFSET: i16 = 201;
+
+pub const INTEGER_SMALL_TOKENS : [char; 19] = ['À', 'Á', 'Â', 'Ã', 'Ä', 'Å', 'Æ', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ï', 'Ð', 'Ñ', 'Ò'];
+
 pub const STRING_TOKEN: char = '¨';
 pub const UNREFERENCED_STRING_TOKEN: char = '´';
 pub const REF_STRING_TOKEN: char = 'ß';

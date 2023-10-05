@@ -1,9 +1,9 @@
 use std::fmt;
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Visitor};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, ESCAPE_CHARACTER, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, ESCAPE_CHARACTER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
-use crate::value::Value;
+use crate::value::{Number, Value};
 
 pub struct OrderedIndex {
     strings: Vec<String>,
@@ -11,7 +11,7 @@ pub struct OrderedIndex {
 
 pub struct Deserializer<'de> {
     input: &'de str,
-    index: OrderedIndex
+    index: OrderedIndex,
 }
 
 impl<'de> Deserializer<'de> {
@@ -56,7 +56,7 @@ impl<'de> Deserializer<'de> {
                     chars.push(ESCAPE_CHARACTER);
                 }
                 if escaped % 2 == 1 && ch != token {
-                    return Err(Error::ExpectedEscapedToken)
+                    return Err(Error::ExpectedEscapedToken);
                 }
             }
 
@@ -74,6 +74,24 @@ impl<'de> Deserializer<'de> {
         }
 
         Ok(res)
+    }
+
+    fn deserialize_number<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        match self.peek_char()? as u8 {
+            ch if (ch > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER) && (ch < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER) => self.deserialize_small_integer(visitor),
+            _ => Err(Error::ExpectedNumber)
+        }
+    }
+
+    fn deserialize_small_integer<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        let ch = self.next_char()? as i16;
+        visitor.visit_i16(ch - INTEGER_SMALL_TOKEN_OFFSET)
     }
 }
 
@@ -94,6 +112,11 @@ impl<'de> Deserialize<'de> for Value {
             fn visit_string<E>(self, str: String) -> std::result::Result<Value, E>
             {
                 Ok(Value::String(str))
+            }
+
+            fn visit_i64<E>(self, number: i64) -> std::result::Result<Value, E>
+            {
+                Ok(Value::Number(Number::Int(number)))
             }
 
             fn visit_seq<V>(self, mut seq: V) -> std::result::Result<Value, V::Error>
@@ -131,6 +154,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             ch if ch == UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
             ch if ch == NULL_TOKEN => self.deserialize_unit(visitor),
             // 't' | 'f' => self.deserialize_bool(visitor),
+            ch if (ch as u8 > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER) && (INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER > ch as u8) => self.deserialize_small_integer(visitor),
             // '0'..='9' => self.deserialize_u64(visitor),
             // '-' => self.deserialize_i64(visitor),
             ch if ch == ARRAY_START_TOKEN => self.deserialize_seq(visitor),
@@ -146,74 +170,74 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_i8<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_i64(visitor)
     }
 
-    fn deserialize_i16<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_i64(visitor)
     }
 
-    fn deserialize_i32<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_i64(visitor)
     }
 
-    fn deserialize_i64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_number(visitor)
     }
 
-    fn deserialize_u8<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_u64(visitor)
     }
 
-    fn deserialize_u16<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_u64(visitor)
     }
 
-    fn deserialize_u32<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_u64(visitor)
     }
 
-    fn deserialize_u64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_i64(visitor)
     }
 
-    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_f64(visitor)
     }
 
-    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_number(visitor)
     }
 
     fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>

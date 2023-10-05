@@ -1,10 +1,33 @@
 use serde_zipson;
-use serde_zipson::value::Value;
+use serde_zipson::value::{Number, Value};
 use crate::de::test_parse;
 
 #[test]
 fn test_null() {
     test_parse("§", Value::Null);
+}
+
+#[test]
+fn test_small_integer() {
+    test_parse("À", Value::Number(Number::Int(-9)));
+    test_parse("Á", Value::Number(Number::Int(-8)));
+    test_parse("Â", Value::Number(Number::Int(-7)));
+    test_parse("Ã", Value::Number(Number::Int(-6)));
+    test_parse("Ä", Value::Number(Number::Int(-5)));
+    test_parse("Å", Value::Number(Number::Int(-4)));
+    test_parse("Æ", Value::Number(Number::Int(-3)));
+    test_parse("Ç", Value::Number(Number::Int(-2)));
+    test_parse("È", Value::Number(Number::Int(-1)));
+    test_parse("É", Value::Number(Number::Int(-0)));
+    test_parse("Ê", Value::Number(Number::Int(1)));
+    test_parse("Ë", Value::Number(Number::Int(2)));
+    test_parse("Ì", Value::Number(Number::Int(3)));
+    test_parse("Í", Value::Number(Number::Int(4)));
+    test_parse("Î", Value::Number(Number::Int(5)));
+    test_parse("Ï", Value::Number(Number::Int(6)));
+    test_parse("Ð", Value::Number(Number::Int(7)));
+    test_parse("Ñ", Value::Number(Number::Int(8)));
+    test_parse("Ò", Value::Number(Number::Int(9)));
 }
 
 #[test]
