@@ -7,7 +7,6 @@ fn test_empty_array() {
     test_parse("|÷", Value::Array(vec![]));
 }
 
-
 #[test]
 fn test_one_small_integer() {
     test_parse("|À÷", Value::Array(vec![Value::Number(Number::Int(-9))]));
@@ -29,6 +28,19 @@ fn test_one_small_integer() {
     test_parse("|Ð÷", Value::Array(vec![Value::Number(Number::Int(7))]));
     test_parse("|Ñ÷", Value::Array(vec![Value::Number(Number::Int(8))]));
     test_parse("|Ò÷", Value::Array(vec![Value::Number(Number::Int(9))]));
+}
+
+#[test]
+fn test_one_big_integer() {
+    test_parse("|¤A÷", Value::Array(vec![Value::Number(Number::Int(10))]));
+    test_parse("|¤z÷", Value::Array(vec![Value::Number(Number::Int(61))]));
+    test_parse("|¢10÷", Value::Array(vec![Value::Number(Number::Int(62))]));
+    test_parse("|¢pc6w÷", Value::Array(vec![Value::Number(Number::Int(12301230))]));
+    test_parse("|¢2AGxFdG÷", Value::Array(vec![Value::Number(Number::Int(123012342310))]));
+
+    test_parse("|¢-A÷", Value::Array(vec![Value::Number(Number::Int(-10))]));
+    test_parse("|¢-pc6w÷", Value::Array(vec![Value::Number(Number::Int(-12301230))]));
+    test_parse("|¢-2AH5Yxa÷", Value::Array(vec![Value::Number(Number::Int(-123014323230))]));
 }
 
 #[test]

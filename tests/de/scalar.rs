@@ -31,6 +31,19 @@ fn test_small_integer() {
 }
 
 #[test]
+fn test_integer_big() {
+    test_parse("¤A", Value::Number(Number::Int(10)));
+    test_parse("¤z", Value::Number(Number::Int(61)));
+    test_parse("¢10", Value::Number(Number::Int(62)));
+    test_parse("¢pc6w", Value::Number(Number::Int(12301230)));
+    test_parse("¢2AGxFdG", Value::Number(Number::Int(123012342310)));
+
+    test_parse("¢-A", Value::Number(Number::Int(-10)));
+    test_parse("¢-pc6w", Value::Number(Number::Int(-12301230)));
+    test_parse("¢-2AH5Yxa", Value::Number(Number::Int(-123014323230)));
+}
+
+#[test]
 fn test_empty_string() {
     test_parse("¨¨", Value::String("".into()));
 }
