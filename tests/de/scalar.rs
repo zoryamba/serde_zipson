@@ -31,7 +31,7 @@ fn test_small_integer() {
 }
 
 #[test]
-fn test_integer_big() {
+fn test_big_integer() {
     test_parse("¤A", Value::Number(Number::Int(10)));
     test_parse("¤z", Value::Number(Number::Int(61)));
     test_parse("¢10", Value::Number(Number::Int(62)));
