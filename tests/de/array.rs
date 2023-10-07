@@ -8,6 +8,17 @@ fn test_empty_array() {
 }
 
 #[test]
+fn test_one_null() {
+    test_parse("|§÷", Value::Array(vec![Value::Null]));
+}
+
+#[test]
+fn test_one_bool() {
+    test_parse("|»÷", Value::Array(vec![Value::Bool(true)]));
+    test_parse("|«÷", Value::Array(vec![Value::Bool(false)]));
+}
+
+#[test]
 fn test_one_small_integer() {
     test_parse("|À÷", Value::Array(vec![Value::Number(Number::Int(-9))]));
     test_parse("|Á÷", Value::Array(vec![Value::Number(Number::Int(-8))]));
@@ -56,9 +67,4 @@ fn test_one_short_string() {
 #[test]
 fn test_one_long_string() {
     test_parse("|¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨÷", Value::Array(vec![Value::String("aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into())]));
-}
-
-#[test]
-fn test_one_null() {
-    test_parse("|§÷", Value::Array(vec![Value::Null]));
 }

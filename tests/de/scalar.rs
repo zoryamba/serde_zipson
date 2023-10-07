@@ -8,6 +8,12 @@ fn test_null() {
 }
 
 #[test]
+fn test_bool() {
+    test_parse("»", Value::Bool(true));
+    test_parse("«", Value::Bool(false));
+}
+
+#[test]
 fn test_small_integer() {
     test_parse("À", Value::Number(Number::Int(-9)));
     test_parse("Á", Value::Number(Number::Int(-8)));

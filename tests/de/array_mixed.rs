@@ -4,8 +4,10 @@ use crate::de::test_parse;
 
 #[test]
 fn test_one_of_each() {
-    test_parse("|§É¤A¢pc6w¢-2AH5Yxa´´´x´¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨÷", Value::Array(vec![
+    test_parse("|§»«É¤A¢pc6w¢-2AH5Yxa´´´x´¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨÷", Value::Array(vec![
         Value::Null,
+        Value::Bool(true),
+        Value::Bool(false),
         Value::Number(Number::Int(0)),
         Value::Number(Number::Int(10)),
         Value::Number(Number::Int(12301230)),

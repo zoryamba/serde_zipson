@@ -1,7 +1,7 @@
 use std::fmt;
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Visitor};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -179,6 +179,16 @@ impl<'de> Deserialize<'de> for Value {
                 formatter.write_str("a string key")
             }
 
+            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+            {
+                Ok(Value::Null)
+            }
+
+            fn visit_bool<E>(self, bool: bool) -> std::result::Result<Self::Value, E>
+            {
+                Ok(Value::Bool(bool))
+            }
+
             fn visit_string<E>(self, str: String) -> std::result::Result<Value, E>
             {
                 Ok(Value::String(str))
@@ -201,11 +211,6 @@ impl<'de> Deserialize<'de> for Value {
 
                 Ok(Value::Array(vec))
             }
-
-            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
-            {
-                Ok(Value::Null)
-            }
         }
 
         deserializer.deserialize_any(ValueVisitor)
@@ -223,7 +228,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             ch if ch == UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
             ch if ch == STRING_TOKEN => self.deserialize_str(visitor),
             ch if ch == NULL_TOKEN => self.deserialize_unit(visitor),
-            // 't' | 'f' => self.deserialize_bool(visitor),
+            ch if ch == BOOLEAN_TRUE_TOKEN => self.deserialize_bool(visitor),
+            ch if ch == BOOLEAN_FALSE_TOKEN => self.deserialize_bool(visitor),
             ch if (ch as u8 > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER) && (INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER > ch as u8) => self.deserialize_small_integer(visitor),
             ch if ch == UNREFERENCED_INTEGER_TOKEN => self.deserialize_big_integer(visitor),
             ch if ch == INTEGER_TOKEN => self.deserialize_big_integer(visitor),
@@ -235,11 +241,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
-    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        let ch = self.next_char()?;
+        match ch {
+            BOOLEAN_TRUE_TOKEN => visitor.visit_bool(true),
+            BOOLEAN_FALSE_TOKEN => visitor.visit_bool(false),
+            _ => Err(Error::ExpectedBoolean)
+        }
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
