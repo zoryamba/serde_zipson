@@ -83,9 +83,9 @@ impl<'de> Deserializer<'de> {
             V: de::Visitor<'de>,
     {
         match self.peek_char()? {
-            ch if (ch as u8 > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER) && (INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER > ch as u8) => self.deserialize_small_integer(visitor),
-            ch if ch == UNREFERENCED_INTEGER_TOKEN => self.deserialize_big_integer(visitor),
-            ch if ch == INTEGER_TOKEN => self.deserialize_big_integer(visitor),
+            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => self.deserialize_small_integer(visitor),
+            UNREFERENCED_INTEGER_TOKEN => self.deserialize_big_integer(visitor),
+            INTEGER_TOKEN => self.deserialize_big_integer(visitor),
             _ => Err(Error::ExpectedNumber)
         }
     }
@@ -225,17 +225,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             V: Visitor<'de>,
     {
         match self.peek_char()? {
-            ch if ch == UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
-            ch if ch == STRING_TOKEN => self.deserialize_str(visitor),
-            ch if ch == NULL_TOKEN => self.deserialize_unit(visitor),
-            ch if ch == BOOLEAN_TRUE_TOKEN => self.deserialize_bool(visitor),
-            ch if ch == BOOLEAN_FALSE_TOKEN => self.deserialize_bool(visitor),
-            ch if (ch as u8 > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER) && (INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER > ch as u8) => self.deserialize_small_integer(visitor),
-            ch if ch == UNREFERENCED_INTEGER_TOKEN => self.deserialize_big_integer(visitor),
-            ch if ch == INTEGER_TOKEN => self.deserialize_big_integer(visitor),
+            UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
+            STRING_TOKEN => self.deserialize_str(visitor),
+            NULL_TOKEN => self.deserialize_unit(visitor),
+            BOOLEAN_TRUE_TOKEN => self.deserialize_bool(visitor),
+            BOOLEAN_FALSE_TOKEN => self.deserialize_bool(visitor),
+            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => self.deserialize_small_integer(visitor),
+            UNREFERENCED_INTEGER_TOKEN => self.deserialize_big_integer(visitor),
+            INTEGER_TOKEN => self.deserialize_big_integer(visitor),
             // '0'..='9' => self.deserialize_u64(visitor),
             // '-' => self.deserialize_i64(visitor),
-            ch if ch == ARRAY_START_TOKEN => self.deserialize_seq(visitor),
+            ARRAY_START_TOKEN => self.deserialize_seq(visitor),
             // '{' => self.deserialize_map(visitor),
             _ => Err(Error::Syntax),
         }
@@ -487,7 +487,7 @@ impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
         where T: DeserializeSeed<'de>
     {
         match self.de.peek_char()? {
-            ch if ch == ARRAY_END_TOKEN => {
+            ARRAY_END_TOKEN => {
                 self.de.next_char()?;
                 return Ok(None);
             },
