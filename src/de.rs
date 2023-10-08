@@ -1,13 +1,14 @@
 use std::fmt;
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Visitor};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
 pub struct OrderedIndex {
     strings: Vec<String>,
     integers: Vec<i64>,
+    floats: Vec<f64>,
 }
 
 pub struct Deserializer<'de> {
@@ -22,6 +23,7 @@ impl<'de> Deserializer<'de> {
             index: OrderedIndex {
                 strings: vec![],
                 integers: vec![],
+                floats: vec![],
             },
         }
     }
@@ -34,6 +36,141 @@ impl<'de> Deserializer<'de> {
         let ch = self.peek_char()?;
         self.input = &self.input[ch.len_utf8()..];
         Ok(ch)
+    }
+
+    fn deserialize_integer<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        let token = self.next_char()?;
+        match token {
+            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => {
+                return visitor.visit_i16(ch as i16 - INTEGER_SMALL_TOKEN_OFFSET)
+            },
+            UNREFERENCED_INTEGER_TOKEN => {
+                return visitor.visit_i64(self.parse_integer()?);
+            }
+            INTEGER_TOKEN => {
+                let val = self.parse_integer()?;
+                self.index.integers.push(val);
+                return visitor.visit_i64(val);
+            },
+            _ => Err(Error::ExpectedInteger)
+        }
+    }
+
+    fn parse_integer(&mut self) -> Result<i64>
+    {
+        let mut ch = self.next_char()?;
+
+        if ch == '0' {
+            return Ok(0);
+        }
+
+        let negative = ch == '-';
+
+        let mut value = 0;
+
+        fn parse_char(ch: char) -> i64 {
+            let code = ch as i64;
+            let mut current = code - 48;
+            if code >= 97 {
+                current -= 13
+            } else if code >= 65 {
+                current -= 7
+            }
+            current
+        }
+
+        if !negative {
+            value = parse_char(ch);
+        }
+
+        loop {
+            let res = self.peek_char();
+            match res {
+                Ok(ch) => {
+                    if ch as u8 > DELIMITING_TOKENS_THRESHOLD {
+                        break;
+                    }
+                    if ch == FLOAT_FULL_PRECISION_DELIMITER || ch == FLOAT_REDUCED_PRECISION_DELIMITER {
+                        break;
+                    }
+                },
+                Err(Error::Eof) => {
+                    break;
+                }
+                Err(err) => return Err(err)
+            }
+
+            ch = self.next_char()?;
+            value *= 62;
+            value += parse_char(ch);
+        }
+
+        if negative {
+            value = -value;
+        }
+
+        Ok(value)
+    }
+
+    fn deserialize_float(&mut self) -> Result<f64>
+    {
+        let token = self.next_char()?;
+
+        let value = self.parse_float()?;
+
+        if token == FLOAT_TOKEN {
+            self.index.floats.push(value);
+        }
+
+        Ok(value)
+    }
+
+    fn parse_float(&mut self) -> Result<f64>
+    {
+        let negative = self.peek_char()? == '-';
+
+        let integer = self.parse_integer()?;
+
+        let delimiter_token = self.next_char()?;
+
+        let fraction: f64 = match delimiter_token {
+            FLOAT_REDUCED_PRECISION_DELIMITER => self.parse_integer()? as f64 / FLOAT_COMPRESSION_PRECISION,
+            FLOAT_FULL_PRECISION_DELIMITER => {
+                let mut res = if negative { "-0." } else { "0." }.to_string();
+
+                loop {
+                    let ch = self.peek_char();
+                    match ch {
+                        Ok(ch) => match ch.to_digit(10) {
+                            Some(_) => {
+                                self.next_char()?;
+                                res.push(ch);
+                            },
+                            None => break,
+                        },
+                        Err(Error::Eof) => {
+                            break;
+                        }
+                        Err(err) => return Err(err)
+                    }
+
+
+                }
+
+                match res.parse::<f64>() {
+                    Ok(res) => res,
+                    Err(_) => return Err(Error::ExpectedFloat)
+                }
+            }
+            _ => return Err(Error::ExpectedFloat)
+        };
+
+        let res = integer as f64 + fraction;
+
+        Ok(res)
     }
 
     fn parse_string(&mut self) -> Result<String> {
@@ -77,92 +214,6 @@ impl<'de> Deserializer<'de> {
 
         Ok(res)
     }
-
-    fn deserialize_integer<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: de::Visitor<'de>,
-    {
-        match self.peek_char()? {
-            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => self.deserialize_small_integer(visitor),
-            UNREFERENCED_INTEGER_TOKEN => self.deserialize_big_integer(visitor),
-            INTEGER_TOKEN => self.deserialize_big_integer(visitor),
-            _ => Err(Error::ExpectedNumber)
-        }
-    }
-
-    fn deserialize_small_integer<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: de::Visitor<'de>,
-    {
-        let ch = self.next_char()? as i16;
-        visitor.visit_i16(ch - INTEGER_SMALL_TOKEN_OFFSET)
-    }
-
-    fn deserialize_big_integer<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: de::Visitor<'de>,
-    {
-        visitor.visit_i64(self.parse_integer()?)
-    }
-
-    fn parse_integer(&mut self) -> Result<i64>
-    {
-        let token = self.next_char()?;
-
-        let mut ch = self.next_char()?;
-
-        if ch == '0' {
-            return Ok(0);
-        }
-
-        let negative = ch == '-';
-
-        let mut value = 0;
-
-        fn parse_char(ch: char) -> i64 {
-            let code = ch as i64;
-            let mut current = code - 48;
-            if code >= 97 {
-                current -= 13
-            } else if code >= 65 {
-                current -= 7
-            }
-            current
-        }
-
-        if !negative {
-            value = parse_char(ch);
-        }
-
-        loop {
-            let res = self.peek_char();
-            match res {
-                Ok(ch) => {
-                    if ch as u8 > DELIMITING_TOKENS_THRESHOLD {
-                        break;
-                    }
-                },
-                Err(Error::Eof) => {
-                    break;
-                }
-                Err(err) => return Err(err)
-            }
-
-            ch = self.next_char()?;
-            value *= 62;
-            value += parse_char(ch);
-        }
-
-        if negative {
-            value = -value;
-        }
-
-        if token == INTEGER_TOKEN {
-            self.index.integers.push(value);
-        }
-
-        Ok(value)
-    }
 }
 
 impl<'de> Deserialize<'de> for Value {
@@ -199,6 +250,11 @@ impl<'de> Deserialize<'de> for Value {
                 Ok(Value::Number(Number::Int(number)))
             }
 
+            fn visit_f64<E>(self, number: f64) -> std::result::Result<Value, E>
+            {
+                Ok(Value::Number(Number::Float(number)))
+            }
+
             fn visit_seq<V>(self, mut seq: V) -> std::result::Result<Value, V::Error>
                 where
                     V: de::SeqAccess<'de>,
@@ -225,14 +281,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             V: Visitor<'de>,
     {
         match self.peek_char()? {
-            UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
-            STRING_TOKEN => self.deserialize_str(visitor),
             NULL_TOKEN => self.deserialize_unit(visitor),
             BOOLEAN_TRUE_TOKEN => self.deserialize_bool(visitor),
             BOOLEAN_FALSE_TOKEN => self.deserialize_bool(visitor),
-            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => self.deserialize_small_integer(visitor),
-            UNREFERENCED_INTEGER_TOKEN => self.deserialize_big_integer(visitor),
-            INTEGER_TOKEN => self.deserialize_big_integer(visitor),
+            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => self.deserialize_integer(visitor),
+            UNREFERENCED_INTEGER_TOKEN => self.deserialize_integer(visitor),
+            INTEGER_TOKEN => self.deserialize_integer(visitor),
+            FLOAT_TOKEN => self.deserialize_f64(visitor),
+            UNREFERENCED_FLOAT_TOKEN => self.deserialize_f64(visitor),
+            UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
+            STRING_TOKEN => self.deserialize_str(visitor),
             // '0'..='9' => self.deserialize_u64(visitor),
             // '-' => self.deserialize_i64(visitor),
             ARRAY_START_TOKEN => self.deserialize_seq(visitor),
@@ -316,11 +374,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.deserialize_f64(visitor)
     }
 
-    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_f64(self.deserialize_float()?)
     }
 
     fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>

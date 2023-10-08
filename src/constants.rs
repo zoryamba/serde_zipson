@@ -17,6 +17,13 @@ pub const STRING_TOKEN: char = '¨';
 pub const UNREFERENCED_STRING_TOKEN: char = '´';
 pub const REF_STRING_TOKEN: char = 'ß';
 
+pub const FLOAT_TOKEN: char = '£';
+pub const UNREFERENCED_FLOAT_TOKEN: char = '¥';
+pub const REF_FLOAT_TOKEN: char = 'Ý';
+pub const FLOAT_FULL_PRECISION_DELIMITER: char = ',';
+pub const FLOAT_REDUCED_PRECISION_DELIMITER: char = '.';
+pub const FLOAT_COMPRESSION_PRECISION: f64 = 1000_f64;
+
 pub const ARRAY_START_TOKEN: char = '|';
 pub const ARRAY_END_TOKEN: char = '÷';
 pub const NULL_TOKEN: char = '§';

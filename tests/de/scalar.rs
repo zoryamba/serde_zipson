@@ -50,6 +50,22 @@ fn test_big_integer() {
 }
 
 #[test]
+fn test_float_small() {
+    test_parse("£0.1n", Value::Number(Number::Float(0.111)));
+    test_parse("£0.-1n", Value::Number(Number::Float(-0.111)));
+    test_parse("£5.G7", Value::Number(Number::Float(5.999)));
+    test_parse("£-F.-8x", Value::Number(Number::Float(-15.555)));
+}
+
+#[test]
+fn test_float_full_precision() {
+    test_parse("£5,9234827938", Value::Number(Number::Float(5.9234827938)));
+    test_parse("£-F,552345411", Value::Number(Number::Float(-15.552345411)));
+    test_parse("£0,552345411", Value::Number(Number::Float(0.552345411)));
+    test_parse("£-0,552345411", Value::Number(Number::Float(-0.552345411)));
+}
+
+#[test]
 fn test_empty_string() {
     test_parse("¨¨", Value::String("".into()));
 }
