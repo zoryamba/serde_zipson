@@ -28,6 +28,7 @@ pub enum Error {
     ExpectedFloat,
     ExpectedSmallNumber,
     ExpectedString,
+    ExpectedDate,
     ExpectedNull,
     ExpectedArray,
     ExpectedArrayComma,

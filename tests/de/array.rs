@@ -85,3 +85,13 @@ fn test_one_short_string() {
 fn test_one_long_string() {
     test_parse("|¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨÷", Value::Array(vec![Value::String("aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into())]));
 }
+
+#[test]
+fn test_one_date() {
+    test_parse("|øSyKTET5÷", Value::Array(vec![Value::String("2022-02-24T04:31:00.123Z".into())]));
+}
+
+#[test]
+fn test_one_lp_date() {
+    test_parse("|±1739m÷", Value::Array(vec![Value::String("2022-02-24T04:30:00.000Z".into())]));
+}

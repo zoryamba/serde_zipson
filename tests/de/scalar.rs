@@ -119,3 +119,13 @@ fn test_long_string_string_token() {
 fn test_long_string_unreferenced_string_token() {
     test_parse("¨´aoasdfjalisruhgals´iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc´¨", Value::String("´aoasdfjalisruhgals´iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc´".into()));
 }
+
+#[test]
+fn test_string_date() {
+    test_parse("øSyKTET5", Value::String("2022-02-24T04:31:00.123Z".into()));
+}
+
+#[test]
+fn test_string_lp_date() {
+    test_parse("±1739m", Value::String("2022-02-24T04:30:00.000Z".into()));
+}
