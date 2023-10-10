@@ -2,7 +2,7 @@ use std::fmt;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Visitor};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -62,6 +62,16 @@ impl<'de> Deserializer<'de> {
             },
             _ => Err(Error::ExpectedInteger)
         }
+    }
+
+    fn deserialize_ref_integer<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        self.next_char()?;
+        let ref_index = self.parse_integer()? as usize;
+
+        return visitor.visit_i64(*self.index.integers.get(ref_index).unwrap());
     }
 
     fn parse_integer(&mut self) -> Result<i64>
@@ -133,6 +143,16 @@ impl<'de> Deserializer<'de> {
         Ok(value)
     }
 
+    fn deserialize_ref_float<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        self.next_char()?;
+        let ref_index = self.parse_integer()? as usize;
+
+        return visitor.visit_f64(*self.index.floats.get(ref_index).unwrap());
+    }
+
     fn parse_float(&mut self) -> Result<f64>
     {
         let negative = self.peek_char()? == '-';
@@ -176,6 +196,16 @@ impl<'de> Deserializer<'de> {
         let res = integer as f64 + fraction;
 
         Ok(res)
+    }
+
+    fn deserialize_ref_string<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        self.next_char()?;
+        let ref_index = self.parse_integer()? as usize;
+
+        return visitor.visit_string(self.index.strings.get(ref_index).unwrap().clone());
     }
 
     fn parse_string(&mut self) -> Result<String> {
@@ -255,6 +285,26 @@ impl<'de> Deserializer<'de> {
 
         visitor.visit_string(value)
     }
+
+    fn deserialize_ref_date<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        self.next_char()?;
+        let ref_index = self.parse_integer()? as usize;
+
+        return visitor.visit_string(self.index.dates.get(ref_index).unwrap().clone());
+    }
+
+    fn deserialize_ref_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        self.next_char()?;
+        let ref_index = self.parse_integer()? as usize;
+
+        return visitor.visit_string(self.index.lp_dates.get(ref_index).unwrap().clone());
+    }
 }
 
 impl<'de> Deserialize<'de> for Value {
@@ -328,12 +378,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => self.deserialize_integer(visitor),
             UNREFERENCED_INTEGER_TOKEN => self.deserialize_integer(visitor),
             INTEGER_TOKEN => self.deserialize_integer(visitor),
+            REF_INTEGER_TOKEN => self.deserialize_ref_integer(visitor),
             FLOAT_TOKEN => self.deserialize_f64(visitor),
+            REF_FLOAT_TOKEN => self.deserialize_ref_float(visitor),
             UNREFERENCED_FLOAT_TOKEN => self.deserialize_f64(visitor),
             UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
             STRING_TOKEN => self.deserialize_str(visitor),
+            REF_STRING_TOKEN => self.deserialize_ref_string(visitor),
             DATE_TOKEN => self.deserialize_date(visitor),
+            REF_DATE_TOKEN => self.deserialize_ref_date(visitor),
             LP_DATE_TOKEN => self.deserialize_date(visitor),
+            REF_LP_DATE_TOKEN => self.deserialize_ref_lp_date(visitor),
             ARRAY_START_TOKEN => self.deserialize_seq(visitor),
             // '{' => self.deserialize_map(visitor),
             _ => Err(Error::Syntax),

@@ -129,3 +129,63 @@ fn test_string_date() {
 fn test_string_lp_date() {
     test_parse("±1739m", Value::String("2022-02-24T04:30:00.000Z".into()));
 }
+
+#[test]
+fn test_ref_integer() {
+    test_parse("|¢1n¢3aº0º1º0º1÷", Value::Array(vec![
+        Value::Number(Number::Int(111)),
+        Value::Number(Number::Int(222)),
+        Value::Number(Number::Int(111)),
+        Value::Number(Number::Int(222)),
+        Value::Number(Number::Int(111)),
+        Value::Number(Number::Int(222)),
+    ]));
+}
+
+#[test]
+fn test_ref_float() {
+    test_parse("|£1n.1c£3a.3EÝ0Ý1Ý0Ý1÷", Value::Array(vec![
+        Value::Number(Number::Float(111.1)),
+        Value::Number(Number::Float(222.2)),
+        Value::Number(Number::Float(111.1)),
+        Value::Number(Number::Float(222.2)),
+        Value::Number(Number::Float(111.1)),
+        Value::Number(Number::Float(222.2)),
+    ]));
+}
+
+#[test]
+fn test_ref_string() {
+    test_parse("|¨aaa¨¨bbb¨ß0ß1ß0ß1÷", Value::Array(vec![
+        Value::String("aaa".into()),
+        Value::String("bbb".into()),
+        Value::String("aaa".into()),
+        Value::String("bbb".into()),
+        Value::String("aaa".into()),
+        Value::String("bbb".into()),
+    ]));
+}
+
+#[test]
+fn test_ref_dates() {
+    test_parse("|øSyKTEStøSyKTEUg×0×1×0×1÷", Value::Array(vec![
+        Value::String("2022-02-24T04:31:00.111Z".into()),
+        Value::String("2022-02-24T04:31:00.222Z".into()),
+        Value::String("2022-02-24T04:31:00.111Z".into()),
+        Value::String("2022-02-24T04:31:00.222Z".into()),
+        Value::String("2022-02-24T04:31:00.111Z".into()),
+        Value::String("2022-02-24T04:31:00.222Z".into()),
+    ]));
+}
+
+#[test]
+fn test_ref_lp_dates() {
+    test_parse("|±1739m±1739sü0ü1ü0ü1÷", Value::Array(vec![
+        Value::String("2022-02-24T04:30:00.000Z".into()),
+        Value::String("2022-02-24T04:40:00.000Z".into()),
+        Value::String("2022-02-24T04:30:00.000Z".into()),
+        Value::String("2022-02-24T04:40:00.000Z".into()),
+        Value::String("2022-02-24T04:30:00.000Z".into()),
+        Value::String("2022-02-24T04:40:00.000Z".into()),
+    ]));
+}
