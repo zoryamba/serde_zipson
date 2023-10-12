@@ -19,8 +19,10 @@ pub const REF_STRING_TOKEN: char = 'ß';
 
 pub const DATE_TOKEN: char = 'ø';
 pub const REF_DATE_TOKEN: char = '×';
+pub const UNREFERENCED_DATE_TOKEN: char = '¿';
 pub const LP_DATE_TOKEN: char = '±';
 pub const REF_LP_DATE_TOKEN: char = 'ü';
+pub const UNREFERENCED_LP_DATE_TOKEN: char = 'ÿ';
 pub const DATE_LOW_PRECISION: i64 = 100;
 
 pub const FLOAT_TOKEN: char = '£';

@@ -2,7 +2,7 @@ use std::fmt;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Visitor};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -256,32 +256,37 @@ impl<'de> Deserializer<'de> {
     {
         let token = self.next_char()?;
 
-        let mut integer = self.parse_integer()?;
+        let integer = self.parse_integer()?;
 
-        let value = match token {
-            DATE_TOKEN => {
-                let seconds = integer / 1000;
-                let millis = (integer % 1000) as u32;
+        let seconds = integer / 1000;
+        let millis = (integer % 1000) as u32;
 
-                let nt = NaiveDateTime::from_timestamp_opt(seconds, millis * 1_000_000).unwrap();
-                let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(nt, Utc);
-                let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
+        let nt = NaiveDateTime::from_timestamp_opt(seconds, millis * 1_000_000).unwrap();
+        let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(nt, Utc);
+        let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
 
-                self.index.dates.push(value.clone());
-                value
-            },
-            LP_DATE_TOKEN => {
-                integer *= DATE_LOW_PRECISION;
+        if token == DATE_TOKEN {
+            self.index.dates.push(value.clone());
+        }
 
-                let nt = NaiveDateTime::from_timestamp_opt(integer, 0).unwrap();
-                let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(nt, Utc);
-                let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
+        visitor.visit_string(value)
+    }
 
-                self.index.lp_dates.push(value.clone());
-                value
-            }
-            _ => {return Err(Error::ExpectedDate)}
-        };
+    fn deserialize_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+    {
+        let token = self.next_char()?;
+
+        let integer = self.parse_integer()? * DATE_LOW_PRECISION;
+
+        let nt = NaiveDateTime::from_timestamp_opt(integer, 0).unwrap();
+        let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(nt, Utc);
+        let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
+
+        if token == LP_DATE_TOKEN {
+            self.index.lp_dates.push(value.clone());
+        }
 
         visitor.visit_string(value)
     }
@@ -386,8 +391,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             STRING_TOKEN => self.deserialize_str(visitor),
             REF_STRING_TOKEN => self.deserialize_ref_string(visitor),
             DATE_TOKEN => self.deserialize_date(visitor),
+            UNREFERENCED_DATE_TOKEN => self.deserialize_date(visitor),
             REF_DATE_TOKEN => self.deserialize_ref_date(visitor),
-            LP_DATE_TOKEN => self.deserialize_date(visitor),
+            LP_DATE_TOKEN => self.deserialize_lp_date(visitor),
+            UNREFERENCED_LP_DATE_TOKEN => self.deserialize_lp_date(visitor),
             REF_LP_DATE_TOKEN => self.deserialize_ref_lp_date(visitor),
             ARRAY_START_TOKEN => self.deserialize_seq(visitor),
             // '{' => self.deserialize_map(visitor),
