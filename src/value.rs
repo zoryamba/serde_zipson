@@ -7,13 +7,6 @@ pub enum Number {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Map<K: PartialEq + Eq + std::hash::Hash, V: PartialEq> {
-    _map: MapImpl<K, V>,
-}
-
-type MapImpl<K, V> = IndexMap<K, V>;
-
-#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Undefined,
     Null,
@@ -21,5 +14,5 @@ pub enum Value {
     Number(Number),
     String(String),
     Array(Vec<Value>),
-    Object(Map<String, Value>),
+    Object(IndexMap<String, Value>),
 }

@@ -34,6 +34,9 @@ pub const FLOAT_COMPRESSION_PRECISION: f64 = 1000_f64;
 
 pub const ARRAY_START_TOKEN: char = '|';
 pub const ARRAY_END_TOKEN: char = '÷';
+pub const OBJECT_START_TOKEN: char = '{';
+pub const OBJECT_END_TOKEN: char = '}';
+
 pub const NULL_TOKEN: char = '§';
 pub const BOOLEAN_TRUE_TOKEN: char = '»';
 pub const BOOLEAN_FALSE_TOKEN: char = '«';

@@ -1,8 +1,9 @@
 use std::fmt;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
+use indexmap::IndexMap;
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Visitor};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -198,56 +199,52 @@ impl<'de> Deserializer<'de> {
         Ok(res)
     }
 
-    fn deserialize_ref_string<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: de::Visitor<'de>,
-    {
-        self.next_char()?;
-        let ref_index = self.parse_integer()? as usize;
-
-        return visitor.visit_string(self.index.strings.get(ref_index).unwrap().clone());
-    }
-
     fn parse_string(&mut self) -> Result<String> {
         let token = self.next_char()?;
-        if token != STRING_TOKEN && token != UNREFERENCED_STRING_TOKEN {
-            return Err(Error::ExpectedString);
-        }
 
-        let mut chars: Vec<char> = vec![];
+        match token {
+            REF_STRING_TOKEN => {
+                let ref_index = self.parse_integer()? as usize;
 
-        loop {
-            let mut ch = self.next_char()?;
-            let mut escaped = 0;
-
-            while ch == ESCAPE_CHARACTER {
-                escaped += 1;
-                ch = self.next_char()?;
+                return Ok(self.index.strings.get(ref_index).unwrap().clone());
             }
+            _ => {
+                let mut chars: Vec<char> = vec![];
 
-            if escaped > 0 {
-                for _ in 0..escaped / 2 {
-                    chars.push(ESCAPE_CHARACTER);
+                loop {
+                    let mut ch = self.next_char()?;
+                    let mut escaped = 0;
+
+                    while ch == ESCAPE_CHARACTER {
+                        escaped += 1;
+                        ch = self.next_char()?;
+                    }
+
+                    if escaped > 0 {
+                        for _ in 0..escaped / 2 {
+                            chars.push(ESCAPE_CHARACTER);
+                        }
+                        if escaped % 2 == 1 && ch != token {
+                            return Err(Error::ExpectedEscapedToken);
+                        }
+                    }
+
+                    if escaped % 2 == 0 && ch == token {
+                        break;
+                    }
+
+                    chars.push(ch);
                 }
-                if escaped % 2 == 1 && ch != token {
-                    return Err(Error::ExpectedEscapedToken);
+
+                let res = String::from_iter(chars);
+
+                if token == STRING_TOKEN {
+                    self.index.strings.push(res.clone());
                 }
+
+                Ok(res)
             }
-
-            if escaped % 2 == 0 && ch == token {
-                break;
-            }
-
-            chars.push(ch);
         }
-
-        let res = String::from_iter(chars);
-
-        if token == STRING_TOKEN {
-            self.index.strings.push(res.clone());
-        }
-
-        Ok(res)
     }
 
     fn deserialize_date<V>(&mut self, visitor: V) -> Result<V::Value>
@@ -351,9 +348,9 @@ impl<'de> Deserialize<'de> for Value {
                 Ok(Value::Number(Number::Float(number)))
             }
 
-            fn visit_seq<V>(self, mut seq: V) -> std::result::Result<Value, V::Error>
+            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Value, A::Error>
                 where
-                    V: de::SeqAccess<'de>,
+                    A: de::SeqAccess<'de>,
             {
                 let mut vec = Vec::new();
 
@@ -362,6 +359,19 @@ impl<'de> Deserialize<'de> for Value {
                 }
 
                 Ok(Value::Array(vec))
+            }
+
+            fn visit_map<A>(self, mut seq: A) -> std::result::Result<Value, A::Error>
+                where
+                    A: de::MapAccess<'de>,
+            {
+                let mut map = IndexMap::new();
+
+                while let Some((key, value)) = seq.next_entry()? {
+                    map.insert(key, value);
+                }
+
+                Ok(Value::Object(map))
             }
         }
 
@@ -384,12 +394,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             UNREFERENCED_INTEGER_TOKEN => self.deserialize_integer(visitor),
             INTEGER_TOKEN => self.deserialize_integer(visitor),
             REF_INTEGER_TOKEN => self.deserialize_ref_integer(visitor),
+            UNREFERENCED_FLOAT_TOKEN => self.deserialize_f64(visitor),
             FLOAT_TOKEN => self.deserialize_f64(visitor),
             REF_FLOAT_TOKEN => self.deserialize_ref_float(visitor),
-            UNREFERENCED_FLOAT_TOKEN => self.deserialize_f64(visitor),
             UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
             STRING_TOKEN => self.deserialize_str(visitor),
-            REF_STRING_TOKEN => self.deserialize_ref_string(visitor),
+            REF_STRING_TOKEN => self.deserialize_str(visitor),
             DATE_TOKEN => self.deserialize_date(visitor),
             UNREFERENCED_DATE_TOKEN => self.deserialize_date(visitor),
             REF_DATE_TOKEN => self.deserialize_ref_date(visitor),
@@ -397,7 +407,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             UNREFERENCED_LP_DATE_TOKEN => self.deserialize_lp_date(visitor),
             REF_LP_DATE_TOKEN => self.deserialize_ref_lp_date(visitor),
             ARRAY_START_TOKEN => self.deserialize_seq(visitor),
-            // '{' => self.deserialize_map(visitor),
+            OBJECT_START_TOKEN => self.deserialize_map(visitor),
             _ => Err(Error::Syntax),
         }
     }
@@ -585,11 +595,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        let _ = self.next_char()?;
+        visitor.visit_map(MapAccess::new(self))
     }
 
     fn deserialize_struct<V>(
@@ -637,7 +648,7 @@ struct SeqAccess<'a, 'de: 'a> {
 
 impl<'a, 'de: 'a> SeqAccess<'a, 'de> {
     fn new(de: &'a mut Deserializer<'de>) -> Self {
-        SeqAccess { de }
+        Self { de }
     }
 }
 
@@ -654,6 +665,38 @@ impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
             }
             _ => Ok(Some(seed.deserialize(&mut *self.de)?))
         }
+    }
+}
+
+struct MapAccess<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+}
+
+impl<'a, 'de: 'a> MapAccess<'a, 'de> {
+    fn new(de: &'a mut Deserializer<'de>) -> Self {
+        Self { de }
+    }
+}
+
+impl<'de, 'a> de::MapAccess<'de> for MapAccess<'a, 'de> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> std::result::Result<Option<K::Value>, Self::Error>
+        where K: DeserializeSeed<'de>
+    {
+        match self.de.peek_char()? {
+            OBJECT_END_TOKEN => {
+                self.de.next_char()?;
+                Ok(None)
+            }
+            _ => Ok(Some(seed.deserialize(&mut *self.de)?))
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
+        where V: DeserializeSeed<'de>
+    {
+        Ok(seed.deserialize(&mut *self.de)?)
     }
 }
 
