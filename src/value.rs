@@ -15,8 +15,8 @@ type MapImpl<K, V> = IndexMap<K, V>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
-    Null,
     Undefined,
+    Null,
     Bool(bool),
     Number(Number),
     String(String),

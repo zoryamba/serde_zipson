@@ -562,15 +562,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         where
             V: Visitor<'de>,
     {
-        let _ = self.next_char();
+        let _ = self.next_char()?;
         visitor.visit_seq(SeqAccess::new(self))
     }
 
-    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
+    fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
         where
             V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_seq(visitor)
     }
 
     fn deserialize_tuple_struct<V>(
@@ -650,12 +650,10 @@ impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
         match self.de.peek_char()? {
             ARRAY_END_TOKEN => {
                 self.de.next_char()?;
-                return Ok(None);
-            },
-            _ => {},
-        };
-
-        Ok(Some(seed.deserialize(&mut *self.de)?))
+                Ok(None)
+            }
+            _ => Ok(Some(seed.deserialize(&mut *self.de)?))
+        }
     }
 }
 
