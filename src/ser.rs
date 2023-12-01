@@ -1,6 +1,6 @@
 use std::result;
 use serde::ser::{self, Serialize};
-use crate::constants::NULL_TOKEN;
+use crate::constants::{BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, NULL_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::Value;
 
@@ -20,8 +20,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     type SerializeStruct = Self;
     type SerializeStructVariant = Self;
 
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        unimplemented!()
+    fn serialize_bool(self, v: bool) -> Result<()> {
+        self.output.push(if v { BOOLEAN_TRUE_TOKEN } else { BOOLEAN_FALSE_TOKEN });
+        Ok(())
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
@@ -305,6 +306,7 @@ impl Serialize for Value {
     {
         match self {
             Value::Null => serializer.serialize_unit(),
+            Value::Bool(v) => serializer.serialize_bool(*v),
             _ => unimplemented!()
         }
     }
