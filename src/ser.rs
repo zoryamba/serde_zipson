@@ -1,5 +1,6 @@
 use std::result;
 use serde::ser::{self, Serialize};
+use crate::constants::NULL_TOKEN;
 use crate::error::{Error, Result};
 use crate::value::Value;
 
@@ -87,7 +88,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_unit(self) -> Result<()> {
-        unimplemented!()
+        self.output.push(NULL_TOKEN);
+        Ok(())
     }
 
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
@@ -297,11 +299,12 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
 }
 
 impl Serialize for Value {
-    fn serialize<S>(&self, _serializer: S) -> result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
     {
         match self {
+            Value::Null => serializer.serialize_unit(),
             _ => unimplemented!()
         }
     }
