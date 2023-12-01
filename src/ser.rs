@@ -1,8 +1,8 @@
 use std::result;
 use serde::ser::{self, Serialize};
-use crate::constants::{BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, NULL_TOKEN};
+use crate::constants::{BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_SMALL_TOKENS, NULL_TOKEN};
 use crate::error::{Error, Result};
-use crate::value::Value;
+use crate::value::{Number, Value};
 
 pub struct Serializer {
     output: String,
@@ -37,7 +37,12 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.serialize_i64(i64::from(v))
     }
 
-    fn serialize_i64(self, _v: i64) -> Result<()> {
+    fn serialize_i64(self, v: i64) -> Result<()> {
+        if v > INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER && v < INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER {
+            self.output.push(INTEGER_SMALL_TOKENS[(v + INTEGER_SMALL_TOKEN_ELEMENT_OFFSET) as usize]);
+            return Ok(())
+        }
+
         unimplemented!()
     }
 
@@ -53,8 +58,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.serialize_u64(u64::from(v))
     }
 
-    fn serialize_u64(self, _v: u64) -> Result<()> {
-        unimplemented!()
+    fn serialize_u64(self, v: u64) -> Result<()> {
+        self.serialize_i64(v as i64)
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
@@ -307,7 +312,19 @@ impl Serialize for Value {
         match self {
             Value::Null => serializer.serialize_unit(),
             Value::Bool(v) => serializer.serialize_bool(*v),
+            Value::Number(n) => n.serialize(serializer),
             _ => unimplemented!()
+        }
+    }
+}
+
+impl Serialize for Number {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+        where S: serde::Serializer
+    {
+        match self {
+            Self::Int(v) => serializer.serialize_i64(*v),
+            Self::Float(_v) => unimplemented!()
         }
     }
 }
