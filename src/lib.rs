@@ -1,4 +1,5 @@
 pub mod de;
+pub mod ser;
 pub mod error;
 pub mod constants;
 pub mod value;
