@@ -34,3 +34,16 @@ fn test_small_integer() {
     test_stringify(Value::Number(Number::Int(8)), "Ñ");
     test_stringify(Value::Number(Number::Int(9)), "Ò");
 }
+
+#[test]
+fn test_big_integer() {
+    // test_stringify(Value::Number(Number::Int(10)), "¤A");
+    // test_stringify(Value::Number(Number::Int(61)), "¤z");
+    test_stringify(Value::Number(Number::Int(62)), "¢10");
+    test_stringify(Value::Number(Number::Int(12301230)), "¢pc6w");
+    test_stringify(Value::Number(Number::Int(123012342310)), "¢2AGxFdG");
+
+    test_stringify(Value::Number(Number::Int(-10)), "¢-A");
+    test_stringify(Value::Number(Number::Int(-12301230)), "¢-pc6w");
+    test_stringify(Value::Number(Number::Int(-123014323230)), "¢-2AH5Yxa");
+}

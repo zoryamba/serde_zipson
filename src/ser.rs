@@ -1,11 +1,36 @@
 use std::result;
 use serde::ser::{self, Serialize};
-use crate::constants::{BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_SMALL_TOKENS, NULL_TOKEN};
+use crate::constants::{BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
 pub struct Serializer {
     output: String,
+}
+
+impl Serializer {
+    fn serialize_integer(&self, v: i64) -> Result<String> {
+        if v == 0 {
+            return Ok('0'.into());
+        }
+
+        let mut result = String::new();
+
+        let mut modulus = if v < 0 { -v } else { v };
+        let mut current;
+
+        while modulus > 0 {
+            current = modulus % 62;
+            modulus -= current;
+            modulus /= 62;
+            result.insert(0, BASE_62[current as usize]);
+        }
+        if v < 0 {
+            result.insert(0, '-');
+        }
+
+        return Ok(result);
+    }
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
@@ -40,10 +65,13 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_i64(self, v: i64) -> Result<()> {
         if v > INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER && v < INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER {
             self.output.push(INTEGER_SMALL_TOKENS[(v + INTEGER_SMALL_TOKEN_ELEMENT_OFFSET) as usize]);
-            return Ok(())
+        } else {
+            let mut res = self.serialize_integer(v)?;
+            res.insert(0, INTEGER_TOKEN);
+            self.output += &res;
         }
 
-        unimplemented!()
+        Ok(())
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
