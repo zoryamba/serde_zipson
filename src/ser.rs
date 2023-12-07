@@ -1,14 +1,29 @@
 use std::result;
+use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use crate::constants::{BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN};
+use crate::constants::{BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN, UNREFERENCED_INTEGER_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
+struct InvertedIndex {
+    integers: IndexMap<i64, String>
+}
+
 pub struct Serializer {
     output: String,
+    index: InvertedIndex,
 }
 
 impl Serializer {
+    fn new() -> Self {
+        Serializer {
+            output: String::new(),
+            index: InvertedIndex {
+                integers: IndexMap::new()
+            }
+        }
+    }
+
     fn serialize_integer(&self, v: i64) -> Result<String> {
         if v == 0 {
             return Ok('0'.into());
@@ -67,8 +82,16 @@ impl<'a> ser::Serializer for &'a mut Serializer {
             self.output.push(INTEGER_SMALL_TOKENS[(v + INTEGER_SMALL_TOKEN_ELEMENT_OFFSET) as usize]);
         } else {
             let mut res = self.serialize_integer(v)?;
-            res.insert(0, INTEGER_TOKEN);
-            self.output += &res;
+            let index = self.serialize_integer(self.index.integers.len() as i64)?;
+
+            if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
+                self.index.integers.insert(v, res.clone());
+                res.insert(0, INTEGER_TOKEN);
+                self.output += &res;
+            } else {
+                res.insert(0, UNREFERENCED_INTEGER_TOKEN);
+                self.output += &res;
+            }
         }
 
         Ok(())
@@ -361,9 +384,7 @@ pub fn to_string<T>(value: &T) -> Result<String>
     where
         T: Serialize,
 {
-    let mut serializer = Serializer {
-        output: String::new(),
-    };
+    let mut serializer = Serializer::new();
     value.serialize(&mut serializer)?;
     Ok(serializer.output)
 }
