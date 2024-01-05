@@ -139,7 +139,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_some<T>(self, value: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         value.serialize(self)
     }
@@ -168,7 +168,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         value: &T,
     ) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         value.serialize(self)
     }
@@ -181,7 +181,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _value: &T,
     ) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -240,11 +240,11 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_element<T>(&mut self, _value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
@@ -259,7 +259,7 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
 
     fn serialize_element<T>(&mut self, _value: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -275,7 +275,7 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
 
     fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -291,7 +291,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
 
     fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -307,14 +307,14 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
 
     fn serialize_key<T>(&mut self, _key: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         unimplemented!()
     }
 
     fn serialize_value<T>(&mut self, _value: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -330,7 +330,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
 
     fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -347,7 +347,7 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
 
     fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
         where
-            T: ?Sized + ser::Serialize,
+            T: ?Sized + Serialize,
     {
         unimplemented!()
     }
