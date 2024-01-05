@@ -1,7 +1,7 @@
 use std::result;
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use crate::constants::{BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN, UNREFERENCED_INTEGER_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN, UNREFERENCED_INTEGER_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -187,7 +187,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        unimplemented!()
+        self.output.push(ARRAY_START_TOKEN);
+        Ok(self)
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -247,7 +248,8 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        self.output.push(ARRAY_END_TOKEN);
+        Ok(())
     }
 }
 
@@ -364,6 +366,7 @@ impl Serialize for Value {
             Value::Null => serializer.serialize_unit(),
             Value::Bool(v) => serializer.serialize_bool(*v),
             Value::Number(n) => n.serialize(serializer),
+            Value::Array(v) => v.serialize(serializer),
             _ => unimplemented!()
         }
     }
