@@ -24,6 +24,7 @@ fn test_small_integer() {
     test_parse("Ç", Value::Number(Number::Int(-2)));
     test_parse("È", Value::Number(Number::Int(-1)));
     test_parse("É", Value::Number(Number::Int(-0)));
+    test_parse("É", Value::Number(Number::Int(0)));
     test_parse("Ê", Value::Number(Number::Int(1)));
     test_parse("Ë", Value::Number(Number::Int(2)));
     test_parse("Ì", Value::Number(Number::Int(3)));
@@ -50,6 +51,10 @@ fn test_big_integer() {
 
 #[test]
 fn test_float_small() {
+    test_parse("£0.0", Value::Number(Number::Float(0.)));
+    test_parse("£0.1", Value::Number(Number::Float(0.001)));
+    test_parse("£0.A", Value::Number(Number::Float(0.01)));
+    test_parse("£0.1c", Value::Number(Number::Float(0.1)));
     test_parse("£0.1n", Value::Number(Number::Float(0.111)));
     test_parse("£0.-1n", Value::Number(Number::Float(-0.111)));
     test_parse("£5.G7", Value::Number(Number::Float(5.999)));
@@ -58,6 +63,7 @@ fn test_float_small() {
 
 #[test]
 fn test_float_full_precision() {
+    test_parse("£0,0", Value::Number(Number::Float(0.)));
     test_parse("£5,9234827938", Value::Number(Number::Float(5.9234827938)));
     test_parse("£-F,552345411", Value::Number(Number::Float(-15.552345411)));
     test_parse("£0,552345411", Value::Number(Number::Float(0.552345411)));

@@ -55,6 +55,10 @@ fn test_one_big_integer() {
 
 #[test]
 fn test_one_float_small() {
+    test_parse("|£0.0÷", Value::Array(vec![Value::Number(Number::Float(0.))]));
+    test_parse("|£0.1÷", Value::Array(vec![Value::Number(Number::Float(0.001))]));
+    test_parse("|£0.A÷", Value::Array(vec![Value::Number(Number::Float(0.01))]));
+    test_parse("|£0.1c÷", Value::Array(vec![Value::Number(Number::Float(0.1))]));
     test_parse("|£0.1n÷", Value::Array(vec![Value::Number(Number::Float(0.111))]));
     test_parse("|£0.-1n÷", Value::Array(vec![Value::Number(Number::Float(-0.111))]));
     test_parse("|£5.G7÷", Value::Array(vec![Value::Number(Number::Float(5.999))]));
@@ -63,6 +67,7 @@ fn test_one_float_small() {
 
 #[test]
 fn test_one_float_full_precision() {
+    test_parse("|£0,0÷", Value::Array(vec![Value::Number(Number::Float(0.))]));
     test_parse("|£5,9234827938÷", Value::Array(vec![Value::Number(Number::Float(5.9234827938))]));
     test_parse("|£-F,552345411÷", Value::Array(vec![Value::Number(Number::Float(-15.552345411))]));
     test_parse("|£0,552345411÷", Value::Array(vec![Value::Number(Number::Float(0.552345411))]));

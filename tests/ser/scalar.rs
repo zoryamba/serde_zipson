@@ -1,5 +1,5 @@
 use serde_zipson::value::{Number, Value};
-use crate::ser::test_stringify;
+use crate::ser::{test_stringify, test_stringify_full_precision};
 
 #[test]
 fn test_null() {
@@ -24,6 +24,7 @@ fn test_small_integer() {
     test_stringify(Value::Number(Number::Int(-2)), "Ç");
     test_stringify(Value::Number(Number::Int(-1)), "È");
     test_stringify(Value::Number(Number::Int(-0)), "É");
+    test_stringify(Value::Number(Number::Int(0)), "É");
     test_stringify(Value::Number(Number::Int(1)), "Ê");
     test_stringify(Value::Number(Number::Int(2)), "Ë");
     test_stringify(Value::Number(Number::Int(3)), "Ì");
@@ -46,4 +47,29 @@ fn test_big_integer() {
     test_stringify(Value::Number(Number::Int(-10)), "¢-A");
     test_stringify(Value::Number(Number::Int(-12301230)), "¢-pc6w");
     test_stringify(Value::Number(Number::Int(-123014323230)), "¢-2AH5Yxa");
+}
+
+#[test]
+fn test_float_small() {
+    test_stringify(Value::Number(Number::Float(-0.)), "£0.0");
+    test_stringify(Value::Number(Number::Float(0.)), "£0.0");
+    test_stringify(Value::Number(Number::Float(-0.0001)), "£0.0");
+    test_stringify(Value::Number(Number::Float(0.0001)), "£0.0");
+    test_stringify(Value::Number(Number::Float(0.001)), "£0.1");
+    test_stringify(Value::Number(Number::Float(0.01)), "£0.A");
+    test_stringify(Value::Number(Number::Float(0.1)), "£0.1c");
+    test_stringify(Value::Number(Number::Float(0.111)), "£0.1n");
+    test_stringify(Value::Number(Number::Float(-0.111)), "£0.-1n");
+    test_stringify(Value::Number(Number::Float(5.999)), "£5.G7");
+    test_stringify(Value::Number(Number::Float(-15.555)), "£-F.-8x");
+}
+
+#[test]
+fn test_float_full_precision() {
+    test_stringify_full_precision(Value::Number(Number::Float(0.)), "£0,0");
+    test_stringify_full_precision(Value::Number(Number::Float(-0.)), "£0,0");
+    test_stringify_full_precision(Value::Number(Number::Float(5.9234827938)), "£5,9234827938");
+    test_stringify_full_precision(Value::Number(Number::Float(-15.552345411)), "£-F,552345411");
+    test_stringify_full_precision(Value::Number(Number::Float(0.552345411)), "£0,552345411");
+    test_stringify_full_precision(Value::Number(Number::Float(-0.552345411)), "£-0,552345411");
 }

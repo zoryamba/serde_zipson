@@ -1,26 +1,30 @@
 use std::result;
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN, UNREFERENCED_INTEGER_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
 struct InvertedIndex {
-    integers: IndexMap<i64, String>
+    integers: IndexMap<i64, String>,
+    floats: IndexMap<String, String>,
 }
 
 pub struct Serializer {
     output: String,
     index: InvertedIndex,
+    full_precision_floats: bool,
 }
 
 impl Serializer {
-    fn new() -> Self {
+    fn new(full_precision_floats: bool) -> Self {
         Serializer {
             output: String::new(),
             index: InvertedIndex {
-                integers: IndexMap::new()
-            }
+                integers: IndexMap::new(),
+                floats: IndexMap::new(),
+            },
+            full_precision_floats,
         }
     }
 
@@ -45,6 +49,31 @@ impl Serializer {
         }
 
         return Ok(result);
+    }
+
+    fn serialize_float(&self, v: f64) -> Result<String> {
+        return if self.full_precision_floats {
+            let v_string = v.to_string();
+            let split: Vec<&str> = v_string.split('.').collect();
+            let operator = if split[0] == "-0" && split.len() > 1 { "-" } else { "" };
+            Ok([
+                operator.to_string(),
+                self.serialize_integer(split[0].parse::<i64>().unwrap())?,
+                FLOAT_FULL_PRECISION_DELIMITER.to_string(),
+                if split.len() > 1 { split[1].to_string() } else { '0'.to_string() }
+            ].join(""))
+        } else {
+            let v_string = v.to_string();
+            let split: Vec<&str> = v_string.split('.').collect();
+            let integer = if split[0] == "-0" { 0 } else { split[0].parse::<i64>().unwrap() };
+            let fraction = ((v % 1.) * FLOAT_COMPRESSION_PRECISION).round() as i64;
+
+            Ok([
+                self.serialize_integer(integer)?,
+                FLOAT_REDUCED_PRECISION_DELIMITER.to_string(),
+                self.serialize_integer(fraction)?,
+            ].join(""))
+        }
     }
 }
 
@@ -81,15 +110,15 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         if v > INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER && v < INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER {
             self.output.push(INTEGER_SMALL_TOKENS[(v + INTEGER_SMALL_TOKEN_ELEMENT_OFFSET) as usize]);
         } else {
-            let mut res = self.serialize_integer(v)?;
+            let res = self.serialize_integer(v)?;
             let index = self.serialize_integer(self.index.integers.len() as i64)?;
 
             if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
                 self.index.integers.insert(v, res.clone());
-                res.insert(0, INTEGER_TOKEN);
+                self.output.push(INTEGER_TOKEN);
                 self.output += &res;
             } else {
-                res.insert(0, UNREFERENCED_INTEGER_TOKEN);
+                self.output.push(UNREFERENCED_INTEGER_TOKEN);
                 self.output += &res;
             }
         }
@@ -117,8 +146,20 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.serialize_f64(f64::from(v))
     }
 
-    fn serialize_f64(self, _v: f64) -> Result<()> {
-        unimplemented!()
+    fn serialize_f64(self, v: f64) -> Result<()> {
+        let res = self.serialize_float(v)?;
+        let index = self.serialize_integer(self.index.floats.len() as i64)?;
+
+        if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
+            self.index.floats.insert(v.to_string(), res.clone());
+            self.output.push(FLOAT_TOKEN);
+            self.output += &res;
+        } else {
+            self.output.push(UNREFERENCED_FLOAT_TOKEN);
+            self.output += &res;
+        }
+
+        Ok(())
     }
 
     fn serialize_char(self, v: char) -> Result<()> {
@@ -378,16 +419,16 @@ impl Serialize for Number {
     {
         match self {
             Self::Int(v) => serializer.serialize_i64(*v),
-            Self::Float(_v) => unimplemented!()
+            Self::Float(v) => serializer.serialize_f64(*v),
         }
     }
 }
 
-pub fn to_string<T>(value: &T) -> Result<String>
+pub fn to_string<T>(value: &T, full_precision_floats: bool) -> Result<String>
     where
         T: Serialize,
 {
-    let mut serializer = Serializer::new();
+    let mut serializer = Serializer::new(full_precision_floats);
     value.serialize(&mut serializer)?;
     Ok(serializer.output)
 }
