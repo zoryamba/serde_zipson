@@ -73,3 +73,70 @@ fn test_float_full_precision() {
     test_stringify_full_precision(Value::Number(Number::Float(0.552345411)), "£0,552345411");
     test_stringify_full_precision(Value::Number(Number::Float(-0.552345411)), "£-0,552345411");
 }
+
+#[test]
+fn test_empty_string() {
+    test_stringify(Value::String("".into()), "´´");
+}
+
+
+#[test]
+fn test_short_string() {
+    test_stringify(Value::String("x".into()), "´x´");
+}
+
+#[test]
+fn test_short_string_single_quote() {
+    test_stringify(Value::String("'".into()), "´'´");
+}
+
+#[test]
+fn test_short_string_double_quote() {
+    test_stringify(Value::String("\"".into()), "´\"´");
+}
+
+#[test]
+fn test_short_string_string_token() {
+    test_stringify(Value::String("¨".into()), "¨\\¨¨");
+}
+
+#[test]
+fn test_short_string_unreferenced_string_token() {
+    test_stringify(Value::String("´".into()), "´\\´´");
+}
+
+#[test]
+fn test_short_string_escape_token() {
+    test_stringify(Value::String("\\".into()), "¨\\\\¨");
+}
+
+#[test]
+fn test_long_string() {
+    test_stringify(Value::String("aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into()), "¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨");
+}
+
+#[test]
+fn test_long_string_single_quote() {
+    test_stringify(Value::String("'aoasdfjalisruhgals'iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc'".into()), "¨'aoasdfjalisruhgals'iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc'¨");
+}
+
+#[test]
+fn test_long_string_double_quote() {
+    test_stringify(Value::String("\"aoasdfjalisruhgals\"iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc\"".into()), "¨\"aoasdfjalisruhgals\"iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc\"¨");
+}
+
+#[test]
+fn test_long_string_string_token() {
+    test_stringify(Value::String("¨aoasdfjalisruhgals¨iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨".into()), "¨\\¨aoasdfjalisruhgals\\¨iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc\\¨¨");
+}
+
+#[test]
+fn test_long_string_unreferenced_string_token() {
+    test_stringify(Value::String("´aoasdfjalisruhgals´iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc´".into()), "¨´aoasdfjalisruhgals´iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc´¨");
+}
+
+
+#[test]
+fn test_long_string_escape_token() {
+    test_stringify(Value::String("\\aoasdfjalisruhgals\\\\iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into()), "¨\\\\aoasdfjalisruhgals\\\\\\\\iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨");
+}

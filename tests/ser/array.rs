@@ -77,3 +77,18 @@ fn test_one_float_full_precision() {
     test_stringify_full_precision(Value::Array(vec![Value::Number(Number::Float(0.552345411))]), "|£0,552345411÷");
     test_stringify_full_precision(Value::Array(vec![Value::Number(Number::Float(-0.552345411))]), "|£-0,552345411÷");
 }
+
+#[test]
+fn test_one_empty_string() {
+    test_stringify(Value::Array(vec![Value::String("".into())]), "|´´÷");
+}
+
+#[test]
+fn test_one_short_string() {
+    test_stringify(Value::Array(vec![Value::String("x".into())]), "|´x´÷");
+}
+
+#[test]
+fn test_one_long_string() {
+    test_stringify(Value::Array(vec![Value::String("aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into())]), "|¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨÷");
+}

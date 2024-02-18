@@ -1,15 +1,17 @@
 pub const ESCAPE_CHARACTER: char = '\\';
 
+pub const ESCAPED_ESCAPE_CHARACTER: &str = "\\\\";
+
 
 pub const INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER: u8 = 191;
 pub const INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER: u8 = 211;
 pub const INTEGER_SMALL_TOKEN_OFFSET: i16 = 201;
 
-pub const INTEGER_SMALL_TOKENS : [char; 19] = ['À', 'Á', 'Â', 'Ã', 'Ä', 'Å', 'Æ', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ï', 'Ð', 'Ñ', 'Ò'];
+pub const INTEGER_SMALL_TOKENS: [char; 19] = ['À', 'Á', 'Â', 'Ã', 'Ä', 'Å', 'Æ', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ï', 'Ð', 'Ñ', 'Ò'];
 pub const INTEGER_SMALL_TOKEN_ELEMENT_OFFSET: i64 = 9;
 pub const INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER: i64 = -10;
 pub const INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER: i64 = 10;
-pub const BASE_62: [char; 62] = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+pub const BASE_62: [char; 62] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
 
 pub const DELIMITING_TOKENS_THRESHOLD: u8 = 122;
 
@@ -18,7 +20,9 @@ pub const UNREFERENCED_INTEGER_TOKEN: char = '¤';
 pub const REF_INTEGER_TOKEN: char = 'º';
 
 pub const STRING_TOKEN: char = '¨';
+pub const ESCAPED_STRING_TOKEN: &str = "\\¨";
 pub const UNREFERENCED_STRING_TOKEN: char = '´';
+pub const ESCAPED_UNREFERENCED_STRING_TOKEN: &str = "\\´";
 pub const REF_STRING_TOKEN: char = 'ß';
 
 pub const DATE_TOKEN: char = 'ø';

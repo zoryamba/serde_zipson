@@ -5,11 +5,11 @@ pub mod array;
 pub mod array_mixed;
 
 fn test_stringify(value: Value, expected: &str) {
-    let res = serde_zipson::ser::to_string::<Value>(&value, false);
+    let res = serde_zipson::ser::to_string::<Value>(&value, false, false);
     assert_eq!(res.unwrap(), expected);
 }
 
 fn test_stringify_full_precision(value: Value, expected: &str) {
-    let res = serde_zipson::ser::to_string::<Value>(&value, true);
+    let res = serde_zipson::ser::to_string::<Value>(&value, true, false);
     assert_eq!(res.unwrap(), expected);
 }

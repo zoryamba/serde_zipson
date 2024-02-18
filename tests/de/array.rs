@@ -74,7 +74,6 @@ fn test_one_float_full_precision() {
     test_parse("|£-0,552345411÷", Value::Array(vec![Value::Number(Number::Float(-0.552345411))]));
 }
 
-
 #[test]
 fn test_one_empty_string() {
     test_parse("|¨¨÷", Value::Array(vec![Value::String("".into())]));

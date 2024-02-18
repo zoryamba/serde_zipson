@@ -1,30 +1,34 @@
 use std::result;
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
 struct InvertedIndex {
     integers: IndexMap<i64, String>,
     floats: IndexMap<String, String>,
+    strings: IndexMap<String, String>,
 }
 
 pub struct Serializer {
     output: String,
     index: InvertedIndex,
     full_precision_floats: bool,
+    detect_utc_timestamps: bool,
 }
 
 impl Serializer {
-    fn new(full_precision_floats: bool) -> Self {
+    fn new(full_precision_floats: bool, detect_utc_timestamps: bool) -> Self {
         Serializer {
             output: String::new(),
             index: InvertedIndex {
                 integers: IndexMap::new(),
                 floats: IndexMap::new(),
+                strings: IndexMap::new(),
             },
             full_precision_floats,
+            detect_utc_timestamps,
         }
     }
 
@@ -73,7 +77,15 @@ impl Serializer {
                 FLOAT_REDUCED_PRECISION_DELIMITER.to_string(),
                 self.serialize_integer(fraction)?,
             ].join(""))
-        }
+        };
+    }
+
+    fn is_date(&self, _v: &str) -> bool {
+        false
+    }
+
+    fn serialize_date(&self, _v: &str) -> Result<String> {
+        Ok("date".to_string())
     }
 }
 
@@ -166,8 +178,27 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.serialize_str(&v.to_string())
     }
 
-    fn serialize_str(self, _v: &str) -> Result<()> {
-        unimplemented!()
+    fn serialize_str(self, v: &str) -> Result<()> {
+        if self.detect_utc_timestamps && self.is_date(v) {
+            self.serialize_date(v)?;
+            return Ok(());
+        }
+        let index = self.serialize_integer(self.index.strings.len() as i64)?;
+        let v = v.replace(ESCAPE_CHARACTER, &ESCAPED_ESCAPE_CHARACTER);
+        let escaped = v.replace(STRING_TOKEN, &ESCAPED_STRING_TOKEN);
+
+        if index.chars().collect::<Vec<_>>().len() < escaped.chars().collect::<Vec<_>>().len() {
+            self.index.strings.insert(v.to_string(), escaped.clone());
+            self.output.push(STRING_TOKEN);
+            self.output += &escaped;
+            self.output.push(STRING_TOKEN);
+        } else {
+            self.output.push(UNREFERENCED_STRING_TOKEN);
+            self.output += &v.replace(UNREFERENCED_STRING_TOKEN, &ESCAPED_UNREFERENCED_STRING_TOKEN);
+            self.output.push(UNREFERENCED_STRING_TOKEN);
+        }
+
+        Ok(())
     }
 
     fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
@@ -408,6 +439,7 @@ impl Serialize for Value {
             Value::Bool(v) => serializer.serialize_bool(*v),
             Value::Number(n) => n.serialize(serializer),
             Value::Array(v) => v.serialize(serializer),
+            Value::String(v) => serializer.serialize_str(v),
             _ => unimplemented!()
         }
     }
@@ -424,11 +456,11 @@ impl Serialize for Number {
     }
 }
 
-pub fn to_string<T>(value: &T, full_precision_floats: bool) -> Result<String>
+pub fn to_string<T>(value: &T, full_precision_floats: bool, detect_utc_timestamps: bool) -> Result<String>
     where
         T: Serialize,
 {
-    let mut serializer = Serializer::new(full_precision_floats);
+    let mut serializer = Serializer::new(full_precision_floats, detect_utc_timestamps);
     value.serialize(&mut serializer)?;
     Ok(serializer.output)
 }
