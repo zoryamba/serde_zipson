@@ -45,7 +45,7 @@ impl<'de> Deserializer<'de> {
 
     fn deserialize_integer<V>(&mut self, visitor: V) -> Result<V::Value>
         where
-            V: de::Visitor<'de>,
+            V: Visitor<'de>,
     {
         let token = self.next_char()?;
         match token {
@@ -66,7 +66,7 @@ impl<'de> Deserializer<'de> {
 
     fn deserialize_ref_integer<V>(&mut self, visitor: V) -> Result<V::Value>
         where
-            V: de::Visitor<'de>,
+            V: Visitor<'de>,
     {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
@@ -145,7 +145,7 @@ impl<'de> Deserializer<'de> {
 
     fn deserialize_ref_float<V>(&mut self, visitor: V) -> Result<V::Value>
         where
-            V: de::Visitor<'de>,
+            V: Visitor<'de>,
     {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
@@ -248,7 +248,7 @@ impl<'de> Deserializer<'de> {
 
     fn deserialize_date<V>(&mut self, visitor: V) -> Result<V::Value>
         where
-            V: de::Visitor<'de>,
+            V: Visitor<'de>,
     {
         let token = self.next_char()?;
 
@@ -270,13 +270,13 @@ impl<'de> Deserializer<'de> {
 
     fn deserialize_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
         where
-            V: de::Visitor<'de>,
+            V: Visitor<'de>,
     {
         let token = self.next_char()?;
 
-        let integer = self.parse_integer()? * DATE_LOW_PRECISION;
+        let integer = self.parse_integer()? * DATE_LOW_PRECISION as i64;
 
-        let nt = NaiveDateTime::from_timestamp_opt(integer, 0).unwrap();
+        let nt = NaiveDateTime::from_timestamp_millis(integer).unwrap();
         let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(nt, Utc);
         let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
 
@@ -289,7 +289,7 @@ impl<'de> Deserializer<'de> {
 
     fn deserialize_ref_date<V>(&mut self, visitor: V) -> Result<V::Value>
         where
-            V: de::Visitor<'de>,
+            V: Visitor<'de>,
     {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
@@ -299,7 +299,7 @@ impl<'de> Deserializer<'de> {
 
     fn deserialize_ref_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
         where
-            V: de::Visitor<'de>,
+            V: Visitor<'de>,
     {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;

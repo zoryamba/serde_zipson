@@ -1,7 +1,8 @@
 use std::result;
+use chrono::DateTime;
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -9,6 +10,8 @@ struct InvertedIndex {
     integers: IndexMap<i64, String>,
     floats: IndexMap<String, String>,
     strings: IndexMap<String, String>,
+    dates: IndexMap<String, String>,
+    lp_dates: IndexMap<String, String>,
 }
 
 pub struct Serializer {
@@ -26,6 +29,8 @@ impl Serializer {
                 integers: IndexMap::new(),
                 floats: IndexMap::new(),
                 strings: IndexMap::new(),
+                dates: IndexMap::new(),
+                lp_dates: IndexMap::new(),
             },
             full_precision_floats,
             detect_utc_timestamps,
@@ -80,12 +85,69 @@ impl Serializer {
         };
     }
 
-    fn is_date(&self, _v: &str) -> bool {
-        false
+    fn is_date(&self, v: &str) -> bool {
+        DATE_REGEX.is_match(v)
     }
 
-    fn serialize_date(&self, _v: &str) -> Result<String> {
-        Ok("date".to_string())
+    fn serialize_date(&mut self, v: &str) -> Result<()> {
+        let date_result = DateTime::parse_from_rfc3339(v);
+        match date_result {
+            Ok(datetime) => {
+                let millis = datetime.timestamp_millis();
+
+                let low_precision_date = millis as f64 / DATE_LOW_PRECISION;
+                let is_low_precision = low_precision_date % 1_f64 == 0_f64;
+
+                if is_low_precision {
+                    let res = self.serialize_integer(low_precision_date as i64)?;
+                    let index = self.serialize_integer(self.index.lp_dates.len() as i64)?;
+
+                    if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
+                        self.index.lp_dates.insert(v.to_string(), res.clone());
+                        self.output.push(LP_DATE_TOKEN);
+                        self.output += &res;
+                    } else {
+                        self.output.push(UNREFERENCED_LP_DATE_TOKEN);
+                        self.output += &res;
+                    }
+                } else {
+                    let res = self.serialize_integer(millis)?;
+                    let index = self.serialize_integer(self.index.dates.len() as i64)?;
+
+                    if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
+                        self.index.dates.insert(v.to_string(), res.clone());
+                        self.output.push(DATE_TOKEN);
+                        self.output += &res;
+                    } else {
+                        self.output.push(UNREFERENCED_DATE_TOKEN);
+                        self.output += &res;
+                    }
+
+                }
+            }
+            _ => self.serialize_string(v)?
+        };
+
+        Ok(())
+    }
+
+    fn serialize_string(&mut self, v: &str) -> Result<()> {
+        let index = self.serialize_integer(self.index.strings.len() as i64)?;
+        let v = v.replace(ESCAPE_CHARACTER, &ESCAPED_ESCAPE_CHARACTER);
+        let escaped = v.replace(STRING_TOKEN, &ESCAPED_STRING_TOKEN);
+
+        if index.chars().collect::<Vec<_>>().len() < escaped.chars().collect::<Vec<_>>().len() {
+            self.index.strings.insert(v.to_string(), escaped.clone());
+            self.output.push(STRING_TOKEN);
+            self.output += &escaped;
+            self.output.push(STRING_TOKEN);
+        } else {
+            self.output.push(UNREFERENCED_STRING_TOKEN);
+            self.output += &v.replace(UNREFERENCED_STRING_TOKEN, &ESCAPED_UNREFERENCED_STRING_TOKEN);
+            self.output.push(UNREFERENCED_STRING_TOKEN);
+        }
+
+        Ok(())
     }
 }
 
@@ -180,25 +242,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_str(self, v: &str) -> Result<()> {
         if self.detect_utc_timestamps && self.is_date(v) {
-            self.serialize_date(v)?;
-            return Ok(());
-        }
-        let index = self.serialize_integer(self.index.strings.len() as i64)?;
-        let v = v.replace(ESCAPE_CHARACTER, &ESCAPED_ESCAPE_CHARACTER);
-        let escaped = v.replace(STRING_TOKEN, &ESCAPED_STRING_TOKEN);
-
-        if index.chars().collect::<Vec<_>>().len() < escaped.chars().collect::<Vec<_>>().len() {
-            self.index.strings.insert(v.to_string(), escaped.clone());
-            self.output.push(STRING_TOKEN);
-            self.output += &escaped;
-            self.output.push(STRING_TOKEN);
-        } else {
-            self.output.push(UNREFERENCED_STRING_TOKEN);
-            self.output += &v.replace(UNREFERENCED_STRING_TOKEN, &ESCAPED_UNREFERENCED_STRING_TOKEN);
-            self.output.push(UNREFERENCED_STRING_TOKEN);
+            return self.serialize_date(v);
         }
 
-        Ok(())
+        self.serialize_string(v)
     }
 
     fn serialize_bytes(self, _v: &[u8]) -> Result<()> {

@@ -1,3 +1,6 @@
+use lazy_static::lazy_static;
+use regex::Regex;
+
 pub const ESCAPE_CHARACTER: char = '\\';
 
 pub const ESCAPED_ESCAPE_CHARACTER: &str = "\\\\";
@@ -31,7 +34,11 @@ pub const UNREFERENCED_DATE_TOKEN: char = '¿';
 pub const LP_DATE_TOKEN: char = '±';
 pub const REF_LP_DATE_TOKEN: char = 'ü';
 pub const UNREFERENCED_LP_DATE_TOKEN: char = 'ÿ';
-pub const DATE_LOW_PRECISION: i64 = 100;
+pub const DATE_LOW_PRECISION: f64 = 100_000_f64;
+
+lazy_static! {
+     pub static ref DATE_REGEX: Regex = Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$").unwrap();
+}
 
 pub const FLOAT_TOKEN: char = '£';
 pub const UNREFERENCED_FLOAT_TOKEN: char = '¥';

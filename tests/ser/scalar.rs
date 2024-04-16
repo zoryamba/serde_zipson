@@ -1,5 +1,5 @@
 use serde_zipson::value::{Number, Value};
-use crate::ser::{test_stringify, test_stringify_full_precision};
+use crate::ser::{test_stringify, test_stringify_detect_dates, test_stringify_full_precision};
 
 #[test]
 fn test_null() {
@@ -135,8 +135,31 @@ fn test_long_string_unreferenced_string_token() {
     test_stringify(Value::String("´aoasdfjalisruhgals´iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc´".into()), "¨´aoasdfjalisruhgals´iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc´¨");
 }
 
-
 #[test]
 fn test_long_string_escape_token() {
     test_stringify(Value::String("\\aoasdfjalisruhgals\\\\iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into()), "¨\\\\aoasdfjalisruhgals\\\\\\\\iuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨");
+}
+
+#[test]
+fn test_string_date() {
+    test_stringify_detect_dates(Value::String("2022-02-24T04:31:00.123Z".into()), "øSyKTET5");
+}
+
+#[test]
+fn test_unreferenced_date() {
+    test_stringify_detect_dates(Value::Array(vec![
+        Value::String("1970-01-01T00:00:00.001Z".into()),
+    ]), "|¿1÷");
+}
+
+#[test]
+fn test_string_lp_date() {
+    test_stringify_detect_dates(Value::String("2022-02-24T04:30:00.000Z".into()), "±1739m");
+}
+
+#[test]
+fn test_unreferenced_lp_date() {
+    test_stringify_detect_dates(Value::Array(vec![
+        Value::String("1970-01-01T00:10:00.000Z".into()),
+    ]), "|ÿ6÷");
 }
