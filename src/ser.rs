@@ -2,7 +2,7 @@ use std::result;
 use chrono::DateTime;
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_INTEGER_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -197,7 +197,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         let index = self.serialize_integer(self.index.integers.len() as i64)?;
 
         if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
-            self.index.integers.insert(v, index.clone());
+            self.index.integers.insert(v, index);
             self.output.push(INTEGER_TOKEN);
             self.output += &res;
         } else {
@@ -229,10 +229,18 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_f64(self, v: f64) -> Result<()> {
         let res = self.serialize_float(v)?;
+        let found_ref = self.index.floats.get(&res);
+
+        if let Some(found) = found_ref {
+            self.output.push(REF_FLOAT_TOKEN);
+            self.output += &found;
+            return Ok(());
+        }
+
         let index = self.serialize_integer(self.index.floats.len() as i64)?;
 
         if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
-            self.index.floats.insert(v.to_string(), res.clone());
+            self.index.floats.insert(res.clone(), index);
             self.output.push(FLOAT_TOKEN);
             self.output += &res;
         } else {

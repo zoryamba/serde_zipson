@@ -1,4 +1,4 @@
-use serde_zipson::value::{Number, Value};
+use serde_zipson::value::{Number::{Float, Int}, Value};
 use crate::de::test_parse;
 
 #[test]
@@ -14,101 +14,101 @@ fn test_bool() {
 
 #[test]
 fn test_small_integer() {
-    test_parse("À", Value::Number(Number::Int(-9)));
-    test_parse("Á", Value::Number(Number::Int(-8)));
-    test_parse("Â", Value::Number(Number::Int(-7)));
-    test_parse("Ã", Value::Number(Number::Int(-6)));
-    test_parse("Ä", Value::Number(Number::Int(-5)));
-    test_parse("Å", Value::Number(Number::Int(-4)));
-    test_parse("Æ", Value::Number(Number::Int(-3)));
-    test_parse("Ç", Value::Number(Number::Int(-2)));
-    test_parse("È", Value::Number(Number::Int(-1)));
-    test_parse("É", Value::Number(Number::Int(-0)));
-    test_parse("É", Value::Number(Number::Int(0)));
-    test_parse("Ê", Value::Number(Number::Int(1)));
-    test_parse("Ë", Value::Number(Number::Int(2)));
-    test_parse("Ì", Value::Number(Number::Int(3)));
-    test_parse("Í", Value::Number(Number::Int(4)));
-    test_parse("Î", Value::Number(Number::Int(5)));
-    test_parse("Ï", Value::Number(Number::Int(6)));
-    test_parse("Ð", Value::Number(Number::Int(7)));
-    test_parse("Ñ", Value::Number(Number::Int(8)));
-    test_parse("Ò", Value::Number(Number::Int(9)));
+    test_parse("À", Value::Number(Int(-9)));
+    test_parse("Á", Value::Number(Int(-8)));
+    test_parse("Â", Value::Number(Int(-7)));
+    test_parse("Ã", Value::Number(Int(-6)));
+    test_parse("Ä", Value::Number(Int(-5)));
+    test_parse("Å", Value::Number(Int(-4)));
+    test_parse("Æ", Value::Number(Int(-3)));
+    test_parse("Ç", Value::Number(Int(-2)));
+    test_parse("È", Value::Number(Int(-1)));
+    test_parse("É", Value::Number(Int(-0)));
+    test_parse("É", Value::Number(Int(0)));
+    test_parse("Ê", Value::Number(Int(1)));
+    test_parse("Ë", Value::Number(Int(2)));
+    test_parse("Ì", Value::Number(Int(3)));
+    test_parse("Í", Value::Number(Int(4)));
+    test_parse("Î", Value::Number(Int(5)));
+    test_parse("Ï", Value::Number(Int(6)));
+    test_parse("Ð", Value::Number(Int(7)));
+    test_parse("Ñ", Value::Number(Int(8)));
+    test_parse("Ò", Value::Number(Int(9)));
 }
 
 #[test]
 fn test_big_integer() {
-    test_parse("¤A", Value::Number(Number::Int(10)));
-    test_parse("¤z", Value::Number(Number::Int(61)));
-    test_parse("¢10", Value::Number(Number::Int(62)));
-    test_parse("¢pc6w", Value::Number(Number::Int(12301230)));
-    test_parse("¢2AGxFdG", Value::Number(Number::Int(123012342310)));
+    test_parse("¤A", Value::Number(Int(10)));
+    test_parse("¤z", Value::Number(Int(61)));
+    test_parse("¢10", Value::Number(Int(62)));
+    test_parse("¢pc6w", Value::Number(Int(12301230)));
+    test_parse("¢2AGxFdG", Value::Number(Int(123012342310)));
 
-    test_parse("¢-A", Value::Number(Number::Int(-10)));
-    test_parse("¢-pc6w", Value::Number(Number::Int(-12301230)));
-    test_parse("¢-2AH5Yxa", Value::Number(Number::Int(-123014323230)));
+    test_parse("¢-A", Value::Number(Int(-10)));
+    test_parse("¢-pc6w", Value::Number(Int(-12301230)));
+    test_parse("¢-2AH5Yxa", Value::Number(Int(-123014323230)));
 }
 
 #[test]
 fn test_unreferenced_integer() {
     test_parse("|¤zÊ¤z÷", Value::Array(vec![
-        Value::Number(Number::Int(61)),
-        Value::Number(Number::Int(1)),
-        Value::Number(Number::Int(61)),
+        Value::Number(Int(61)),
+        Value::Number(Int(1)),
+        Value::Number(Int(61)),
     ]));
 }
 
 #[test]
 fn test_ref_integer() {
     test_parse("|¢1n¢3aº0º1º0º1÷", Value::Array(vec![
-        Value::Number(Number::Int(111)),
-        Value::Number(Number::Int(222)),
-        Value::Number(Number::Int(111)),
-        Value::Number(Number::Int(222)),
-        Value::Number(Number::Int(111)),
-        Value::Number(Number::Int(222)),
+        Value::Number(Int(111)),
+        Value::Number(Int(222)),
+        Value::Number(Int(111)),
+        Value::Number(Int(222)),
+        Value::Number(Int(111)),
+        Value::Number(Int(222)),
     ]));
 }
 
 #[test]
 fn test_float_small() {
-    test_parse("£0.0", Value::Number(Number::Float(0.)));
-    test_parse("£0.1", Value::Number(Number::Float(0.001)));
-    test_parse("£0.A", Value::Number(Number::Float(0.01)));
-    test_parse("£0.1c", Value::Number(Number::Float(0.1)));
-    test_parse("£0.1n", Value::Number(Number::Float(0.111)));
-    test_parse("£0.-1n", Value::Number(Number::Float(-0.111)));
-    test_parse("£5.G7", Value::Number(Number::Float(5.999)));
-    test_parse("£-F.-8x", Value::Number(Number::Float(-15.555)));
+    test_parse("£0.0", Value::Number(Float(0.)));
+    test_parse("£0.1", Value::Number(Float(0.001)));
+    test_parse("£0.A", Value::Number(Float(0.01)));
+    test_parse("£0.1c", Value::Number(Float(0.1)));
+    test_parse("£0.1n", Value::Number(Float(0.111)));
+    test_parse("£0.-1n", Value::Number(Float(-0.111)));
+    test_parse("£5.G7", Value::Number(Float(5.999)));
+    test_parse("£-F.-8x", Value::Number(Float(-15.555)));
 }
 
 #[test]
 fn test_float_full_precision() {
-    test_parse("£0,0", Value::Number(Number::Float(0.)));
-    test_parse("£5,9234827938", Value::Number(Number::Float(5.9234827938)));
-    test_parse("£-F,552345411", Value::Number(Number::Float(-15.552345411)));
-    test_parse("£0,552345411", Value::Number(Number::Float(0.552345411)));
-    test_parse("£-0,552345411", Value::Number(Number::Float(-0.552345411)));
+    test_parse("£0,0", Value::Number(Float(0.)));
+    test_parse("£5,9234827938", Value::Number(Float(5.9234827938)));
+    test_parse("£-F,552345411", Value::Number(Float(-15.552345411)));
+    test_parse("£0,552345411", Value::Number(Float(0.552345411)));
+    test_parse("£-0,552345411", Value::Number(Float(-0.552345411)));
 }
 
 #[test]
 fn test_unreferenced_float() {
     test_parse("|¥1,1£1c.1cÝ0÷", Value::Array(vec![
-        Value::Number(Number::Float(1.1)),
-        Value::Number(Number::Float(100.1)),
-        Value::Number(Number::Float(100.1)),
+        Value::Number(Float(1.1)),
+        Value::Number(Float(100.1)),
+        Value::Number(Float(100.1)),
     ]));
 }
 
 #[test]
 fn test_ref_float() {
     test_parse("|£1n.1c£3a.3EÝ0Ý1Ý0Ý1÷", Value::Array(vec![
-        Value::Number(Number::Float(111.1)),
-        Value::Number(Number::Float(222.2)),
-        Value::Number(Number::Float(111.1)),
-        Value::Number(Number::Float(222.2)),
-        Value::Number(Number::Float(111.1)),
-        Value::Number(Number::Float(222.2)),
+        Value::Number(Float(111.1)),
+        Value::Number(Float(222.2)),
+        Value::Number(Float(111.1)),
+        Value::Number(Float(222.2)),
+        Value::Number(Float(111.1)),
+        Value::Number(Float(222.2)),
     ]));
 }
 
