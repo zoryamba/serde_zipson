@@ -1,4 +1,6 @@
 use serde_zipson::value::{Number, Value};
+use serde_zipson::ser::to_string;
+use serde_zipson::value::Number::Float;
 use crate::ser::{test_stringify, test_stringify_detect_dates, test_stringify_full_precision};
 
 #[test]
@@ -50,6 +52,15 @@ fn test_big_integer() {
 }
 
 #[test]
+fn test_unreferenced_integer() {
+    test_stringify(Value::Array(vec![
+        Value::Number(Number::Int(61)),
+        Value::Number(Number::Int(62)),
+        Value::Number(Number::Int(61)),
+    ]), "|¤z¢10¤z÷");
+}
+
+#[test]
 fn test_float_small() {
     test_stringify(Value::Number(Number::Float(-0.)), "£0.0");
     test_stringify(Value::Number(Number::Float(0.)), "£0.0");
@@ -72,6 +83,23 @@ fn test_float_full_precision() {
     test_stringify_full_precision(Value::Number(Number::Float(-15.552345411)), "£-F,552345411");
     test_stringify_full_precision(Value::Number(Number::Float(0.552345411)), "£0,552345411");
     test_stringify_full_precision(Value::Number(Number::Float(-0.552345411)), "£-0,552345411");
+}
+
+#[test]
+fn test_unreferenced_float() {
+    let mut values = vec![];
+    for i in 0..62 * 62 {
+        values.push(Value::Number(Float(0.111 + 0.01 * i as f64)));
+    }
+
+    values.push(Value::Number(Number::Float(0.001)));
+    values.push(Value::Number(Number::Float(111.111)));
+    values.push(Value::Number(Number::Float(0.001)));
+
+    let res = to_string::<Value>(&Value::Array(values), false, false);
+
+    let re = regex::Regex::new(r"¥0\.1£1n\.1n¥0\.1÷$").unwrap();
+    assert!(re.is_match(&res.unwrap()));
 }
 
 #[test]
@@ -143,6 +171,15 @@ fn test_long_string_escape_token() {
 #[test]
 fn test_string_date() {
     test_stringify_detect_dates(Value::String("2022-02-24T04:31:00.123Z".into()), "øSyKTET5");
+}
+
+#[test]
+fn test_unreferenced_string() {
+    test_stringify_detect_dates(Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("aaa".into()),
+        Value::String("x".into()),
+    ]), "|´x´¨aaa¨´x´÷");
 }
 
 #[test]
