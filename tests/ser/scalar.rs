@@ -206,6 +206,18 @@ fn test_unreferenced_string() {
 }
 
 #[test]
+fn test_ref_string() {
+    test_stringify_detect_dates(Value::Array(vec![
+        Value::String("aaa".into()),
+        Value::String("bbb".into()),
+        Value::String("aaa".into()),
+        Value::String("bbb".into()),
+        Value::String("aaa".into()),
+        Value::String("bbb".into()),
+    ]), "|¨aaa¨¨bbb¨ß0ß1ß0ß1÷");
+}
+
+#[test]
 fn test_unreferenced_date() {
     test_stringify_detect_dates(Value::Array(vec![
         Value::String("1970-01-01T00:00:00.001Z".into()),

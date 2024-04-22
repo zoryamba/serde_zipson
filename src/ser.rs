@@ -2,7 +2,7 @@ use std::result;
 use chrono::{DateTime, FixedOffset};
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -121,18 +121,25 @@ impl Serializer {
     }
 
     fn serialize_string(&mut self, v: &str) -> Result<()> {
-        let index = self.serialize_integer(self.index.strings.len() as i64)?;
-        let v = v.replace(ESCAPE_CHARACTER, &ESCAPED_ESCAPE_CHARACTER);
-        let escaped = v.replace(STRING_TOKEN, &ESCAPED_STRING_TOKEN);
+        let found_ref = self.index.strings.get(v);
+        if let Some(found) = found_ref {
+            self.output.push(REF_STRING_TOKEN);
+            self.output += &found;
+            return Ok(());
+        }
 
-        if index.chars().collect::<Vec<_>>().len() < escaped.chars().collect::<Vec<_>>().len() {
-            self.index.strings.insert(v.to_string(), escaped.clone());
+        let escaped = v.replace(ESCAPE_CHARACTER, &ESCAPED_ESCAPE_CHARACTER);
+        let escaped_token = escaped.replace(STRING_TOKEN, &ESCAPED_STRING_TOKEN);
+        let index = self.serialize_integer(self.index.strings.len() as i64)?;
+
+        if index.chars().collect::<Vec<_>>().len() < escaped_token.chars().collect::<Vec<_>>().len() {
+            self.index.strings.insert(v.to_string(), index);
             self.output.push(STRING_TOKEN);
-            self.output += &escaped;
+            self.output += &escaped_token;
             self.output.push(STRING_TOKEN);
         } else {
             self.output.push(UNREFERENCED_STRING_TOKEN);
-            self.output += &v.replace(UNREFERENCED_STRING_TOKEN, &ESCAPED_UNREFERENCED_STRING_TOKEN);
+            self.output += &escaped.replace(UNREFERENCED_STRING_TOKEN, &ESCAPED_UNREFERENCED_STRING_TOKEN);
             self.output.push(UNREFERENCED_STRING_TOKEN);
         }
 
