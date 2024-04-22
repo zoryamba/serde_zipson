@@ -225,6 +225,18 @@ fn test_unreferenced_date() {
 }
 
 #[test]
+fn test_ref_date() {
+    test_stringify_detect_dates(Value::Array(vec![
+        Value::String("2022-02-24T04:31:00.111Z".into()),
+        Value::String("2022-02-24T04:31:00.222Z".into()),
+        Value::String("2022-02-24T04:31:00.111Z".into()),
+        Value::String("2022-02-24T04:31:00.222Z".into()),
+        Value::String("2022-02-24T04:31:00.111Z".into()),
+        Value::String("2022-02-24T04:31:00.222Z".into()),
+    ]), "|øSyKTEStøSyKTEUg×0×1×0×1÷");
+}
+
+#[test]
 fn test_string_lp_date() {
     test_stringify_detect_dates(Value::String("2022-02-24T04:30:00.000Z".into()), "±1739m");
 }
@@ -234,4 +246,16 @@ fn test_unreferenced_lp_date() {
     test_stringify_detect_dates(Value::Array(vec![
         Value::String("1970-01-01T00:10:00.000Z".into()),
     ]), "|ÿ6÷");
+}
+
+#[test]
+fn test_ref_lp_date() {
+    test_stringify_detect_dates(Value::Array(vec![
+        Value::String("2022-02-24T04:30:00.000Z".into()),
+        Value::String("2022-02-24T04:40:00.000Z".into()),
+        Value::String("2022-02-24T04:30:00.000Z".into()),
+        Value::String("2022-02-24T04:40:00.000Z".into()),
+        Value::String("2022-02-24T04:30:00.000Z".into()),
+        Value::String("2022-02-24T04:40:00.000Z".into()),
+    ]), "|±1739m±1739sü0ü1ü0ü1÷");
 }

@@ -2,7 +2,7 @@ use std::result;
 use chrono::{DateTime, FixedOffset};
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 
@@ -85,39 +85,60 @@ impl Serializer {
         };
     }
 
-    fn serialize_date(&mut self, v: DateTime<FixedOffset>) -> Result<()> {
-        let millis = v.timestamp_millis();
+    fn serialize_date(&mut self, v: &str) -> Result<()> {
+        let date_result = DateTime::parse_from_rfc3339(v);
 
-        let low_precision_date = millis as f64 / DATE_LOW_PRECISION;
-        let is_low_precision = low_precision_date % 1_f64 == 0_f64;
+        return match date_result {
+            Ok(date) => {
+                let millis = date.timestamp_millis();
 
-        if is_low_precision {
-            let res = self.serialize_integer(low_precision_date as i64)?;
-            let index = self.serialize_integer(self.index.lp_dates.len() as i64)?;
+                let low_precision_date = millis as f64 / DATE_LOW_PRECISION;
+                let is_low_precision = low_precision_date % 1_f64 == 0_f64;
 
-            if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
-                self.index.lp_dates.insert(v.to_string(), res.clone());
-                self.output.push(LP_DATE_TOKEN);
-                self.output += &res;
-            } else {
-                self.output.push(UNREFERENCED_LP_DATE_TOKEN);
-                self.output += &res;
+                if is_low_precision {
+                    let found_ref = self.index.lp_dates.get(v);
+                    if let Some(found) = found_ref {
+                        self.output.push(REF_LP_DATE_TOKEN);
+                        self.output += &found;
+                        return Ok(());
+                    }
+
+                    let res = self.serialize_integer(low_precision_date as i64)?;
+                    let index = self.serialize_integer(self.index.lp_dates.len() as i64)?;
+
+                    if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
+                        self.index.lp_dates.insert(v.to_string(), index);
+                        self.output.push(LP_DATE_TOKEN);
+                        self.output += &res;
+                    } else {
+                        self.output.push(UNREFERENCED_LP_DATE_TOKEN);
+                        self.output += &res;
+                    }
+                } else {
+                    let found_ref = self.index.dates.get(v);
+                    if let Some(found) = found_ref {
+                        self.output.push(REF_DATE_TOKEN);
+                        self.output += &found;
+                        return Ok(());
+                    }
+
+                    let res = self.serialize_integer(millis)?;
+                    let index = self.serialize_integer(self.index.dates.len() as i64)?;
+
+                    if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
+                        self.index.dates.insert(v.to_string(), index);
+                        self.output.push(DATE_TOKEN);
+                        self.output += &res;
+                    } else {
+                        self.output.push(UNREFERENCED_DATE_TOKEN);
+                        self.output += &res;
+                    }
+                }
+
+                Ok(())
             }
-        } else {
-            let res = self.serialize_integer(millis)?;
-            let index = self.serialize_integer(self.index.dates.len() as i64)?;
-
-            if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
-                self.index.dates.insert(v.to_string(), res.clone());
-                self.output.push(DATE_TOKEN);
-                self.output += &res;
-            } else {
-                self.output.push(UNREFERENCED_DATE_TOKEN);
-                self.output += &res;
-            }
+            _ => self.serialize_string(v)
         }
-
-        Ok(())
     }
 
     fn serialize_string(&mut self, v: &str) -> Result<()> {
@@ -253,10 +274,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_str(self, v: &str) -> Result<()> {
         if self.detect_utc_timestamps && DATE_REGEX.is_match(v) {
-            let date_result = DateTime::parse_from_rfc3339(v);
-            if let Ok(date) = date_result {
-                return self.serialize_date(date);
-            }
+            return self.serialize_date(v);
         }
 
         self.serialize_string(v)
