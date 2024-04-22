@@ -61,6 +61,18 @@ fn test_unreferenced_integer() {
 }
 
 #[test]
+fn test_ref_integer() {
+    test_stringify(Value::Array(vec![
+        Value::Number(Number::Int(111)),
+        Value::Number(Number::Int(222)),
+        Value::Number(Number::Int(111)),
+        Value::Number(Number::Int(222)),
+        Value::Number(Number::Int(111)),
+        Value::Number(Number::Int(222)),
+    ]), "|¢1n¢3aº0º1º0º1÷");
+}
+
+#[test]
 fn test_float_small() {
     test_stringify(Value::Number(Number::Float(-0.)), "£0.0");
     test_stringify(Value::Number(Number::Float(0.)), "£0.0");
