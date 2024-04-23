@@ -1,5 +1,5 @@
 use serde_zipson::value::{Number, Value};
-use crate::ser::{test_stringify, test_stringify_full_precision};
+use crate::ser::{test_stringify, test_stringify_detect_dates, test_stringify_full_precision};
 
 #[test]
 fn test_empty_array() {
@@ -91,4 +91,14 @@ fn test_one_short_string() {
 #[test]
 fn test_one_long_string() {
     test_stringify(Value::Array(vec![Value::String("aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into())]), "|¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨÷");
+}
+
+#[test]
+fn test_one_date() {
+    test_stringify_detect_dates(Value::Array(vec![Value::String("2022-02-24T04:31:00.123Z".into())]), "|øSyKTET5÷");
+}
+
+#[test]
+fn test_one_lp_date() {
+    test_stringify_detect_dates(Value::Array(vec![Value::String("2022-02-24T04:30:00.000Z".into())]), "|±1739m÷");
 }
