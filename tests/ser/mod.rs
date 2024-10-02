@@ -2,6 +2,7 @@ use serde_zipson::value::Value;
 
 pub mod scalar;
 pub mod array;
+pub mod object;
 pub mod array_mixed;
 
 fn test_stringify(value: Value, expected: &str) {

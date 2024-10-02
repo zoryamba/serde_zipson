@@ -1,10 +1,10 @@
-use std::result;
-use chrono::{DateTime};
-use indexmap::IndexMap;
-use serde::ser::{self, Serialize};
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPE_CHARACTER, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_SMALL_TOKENS, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKENS, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
+use chrono::DateTime;
+use indexmap::IndexMap;
+use serde::ser::{self, Serialize};
+use std::result;
 
 struct InvertedIndex {
     integers: IndexMap<i64, String>,
@@ -138,7 +138,7 @@ impl Serializer {
                 Ok(())
             }
             _ => self.serialize_string(v)
-        }
+        };
     }
 
     fn serialize_string(&mut self, v: &str) -> Result<()> {
@@ -289,8 +289,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_some<T>(self, value: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         value.serialize(self)
     }
@@ -318,8 +318,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _name: &'static str,
         value: &T,
     ) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         value.serialize(self)
     }
@@ -331,8 +331,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _value: &T,
     ) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -365,7 +365,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        unimplemented!()
+        self.output.push(OBJECT_START_TOKEN);
+        Ok(self)
     }
 
     fn serialize_struct(
@@ -392,8 +393,8 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         value.serialize(&mut **self)
     }
@@ -409,8 +410,8 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_element<T>(&mut self, _value: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -425,8 +426,8 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -441,8 +442,8 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -456,22 +457,23 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_key<T>(&mut self, _key: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
     {
-        unimplemented!()
+        key.serialize(&mut **self)
     }
 
-    fn serialize_value<T>(&mut self, _value: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        self.output.push(OBJECT_END_TOKEN);
+        Ok(())
     }
 }
 
@@ -480,8 +482,8 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -497,8 +499,8 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
-        where
-            T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
     {
         unimplemented!()
     }
@@ -510,14 +512,15 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
 
 impl Serialize for Value {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
+    where
+        S: serde::Serializer,
     {
         match self {
             Value::Null => serializer.serialize_unit(),
             Value::Bool(v) => serializer.serialize_bool(*v),
             Value::Number(n) => n.serialize(serializer),
             Value::Array(v) => v.serialize(serializer),
+            Value::Object(v) => v.serialize(serializer),
             Value::String(v) => serializer.serialize_str(v),
             _ => unimplemented!()
         }
@@ -526,7 +529,8 @@ impl Serialize for Value {
 
 impl Serialize for Number {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-        where S: serde::Serializer
+    where
+        S: serde::Serializer,
     {
         match self {
             Self::Int(v) => serializer.serialize_i64(*v),
@@ -536,8 +540,8 @@ impl Serialize for Number {
 }
 
 pub fn to_string<T>(value: &T, full_precision_floats: bool, detect_utc_timestamps: bool) -> Result<String>
-    where
-        T: Serialize,
+where
+    T: Serialize,
 {
     let mut serializer = Serializer::new(full_precision_floats, detect_utc_timestamps);
     value.serialize(&mut serializer)?;
