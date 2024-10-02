@@ -1,7 +1,7 @@
 use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
-use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
+use chrono::{DateTime, SecondsFormat, Utc};
 use indexmap::IndexMap;
 use serde::de::{self, Deserialize, DeserializeSeed, Visitor};
 use std::fmt;
@@ -255,8 +255,7 @@ impl<'de> Deserializer<'de> {
         let seconds = integer / 1000;
         let millis = (integer % 1000) as u32;
 
-        let nt = NaiveDateTime::from_timestamp_opt(seconds, millis * 1_000_000).unwrap();
-        let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(nt, Utc);
+        let dt: DateTime<Utc> = DateTime::from_timestamp(seconds, millis * 1_000_000).unwrap();
         let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
 
         if token == DATE_TOKEN {
@@ -274,8 +273,7 @@ impl<'de> Deserializer<'de> {
 
         let integer = self.parse_integer()? * DATE_LOW_PRECISION as i64;
 
-        let nt = NaiveDateTime::from_timestamp_millis(integer).unwrap();
-        let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(nt, Utc);
+        let dt: DateTime<Utc> = DateTime::from_timestamp_millis(integer).unwrap();
         let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
 
         if token == LP_DATE_TOKEN {
