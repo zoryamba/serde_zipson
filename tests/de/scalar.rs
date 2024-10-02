@@ -1,5 +1,5 @@
-use serde_zipson::value::{Number::{Float, Int}, Value};
 use crate::de::test_parse;
+use serde_zipson::value::{Number::{Float, Int}, Value};
 
 #[test]
 fn test_null() {

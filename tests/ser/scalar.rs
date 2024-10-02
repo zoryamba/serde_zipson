@@ -1,6 +1,6 @@
-use serde_zipson::value::{Number::{Float, Int}, Value};
-use serde_zipson::ser::to_string;
 use crate::ser::{test_stringify, test_stringify_detect_dates, test_stringify_full_precision};
+use serde_zipson::ser::to_string;
+use serde_zipson::value::{Number::{Float, Int}, Value};
 
 #[test]
 fn test_null() {

@@ -1,10 +1,10 @@
-use std::fmt;
-use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
-use indexmap::IndexMap;
-use serde::de::{self, Deserialize, DeserializeSeed, Visitor};
 use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
+use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
+use indexmap::IndexMap;
+use serde::de::{self, Deserialize, DeserializeSeed, Visitor};
+use std::fmt;
 
 pub struct OrderedIndex {
     strings: Vec<String>,
@@ -44,14 +44,14 @@ impl<'de> Deserializer<'de> {
     }
 
     fn deserialize_integer<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         let token = self.next_char()?;
         match token {
             ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => {
                 return visitor.visit_i16(ch as i16 - INTEGER_SMALL_TOKEN_OFFSET)
-            },
+            }
             UNREFERENCED_INTEGER_TOKEN => {
                 return visitor.visit_i64(self.parse_integer()?);
             }
@@ -59,14 +59,14 @@ impl<'de> Deserializer<'de> {
                 let val = self.parse_integer()?;
                 self.index.integers.push(val);
                 return visitor.visit_i64(val);
-            },
+            }
             _ => Err(Error::ExpectedInteger)
         }
     }
 
     fn deserialize_ref_integer<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
@@ -111,7 +111,7 @@ impl<'de> Deserializer<'de> {
                     if ch == FLOAT_FULL_PRECISION_DELIMITER || ch == FLOAT_REDUCED_PRECISION_DELIMITER {
                         break;
                     }
-                },
+                }
                 Err(Error::Eof) => {
                     break;
                 }
@@ -144,8 +144,8 @@ impl<'de> Deserializer<'de> {
     }
 
     fn deserialize_ref_float<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
@@ -173,7 +173,7 @@ impl<'de> Deserializer<'de> {
                             Some(_) => {
                                 self.next_char()?;
                                 res.push(ch);
-                            },
+                            }
                             None => break,
                         },
                         Err(Error::Eof) => {
@@ -181,8 +181,6 @@ impl<'de> Deserializer<'de> {
                         }
                         Err(err) => return Err(err)
                     }
-
-
                 }
 
                 match res.parse::<f64>() {
@@ -247,8 +245,8 @@ impl<'de> Deserializer<'de> {
     }
 
     fn deserialize_date<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         let token = self.next_char()?;
 
@@ -269,8 +267,8 @@ impl<'de> Deserializer<'de> {
     }
 
     fn deserialize_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         let token = self.next_char()?;
 
@@ -288,8 +286,8 @@ impl<'de> Deserializer<'de> {
     }
 
     fn deserialize_ref_date<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
@@ -298,8 +296,8 @@ impl<'de> Deserializer<'de> {
     }
 
     fn deserialize_ref_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
@@ -310,7 +308,8 @@ impl<'de> Deserializer<'de> {
 
 impl<'de> Deserialize<'de> for Value {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Value, D::Error>
-        where D: de::Deserializer<'de>
+    where
+        D: de::Deserializer<'de>,
     {
         struct ValueVisitor;
 
@@ -348,8 +347,8 @@ impl<'de> Deserialize<'de> for Value {
             }
 
             fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Value, A::Error>
-                where
-                    A: de::SeqAccess<'de>,
+            where
+                A: de::SeqAccess<'de>,
             {
                 let mut vec = Vec::new();
 
@@ -361,8 +360,8 @@ impl<'de> Deserialize<'de> for Value {
             }
 
             fn visit_map<A>(self, mut seq: A) -> std::result::Result<Value, A::Error>
-                where
-                    A: de::MapAccess<'de>,
+            where
+                A: de::MapAccess<'de>,
             {
                 let mut map = IndexMap::new();
 
@@ -382,8 +381,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         match self.peek_char()? {
             NULL_TOKEN => self.deserialize_unit(visitor),
@@ -412,8 +411,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         let ch = self.next_char()?;
         match ch {
@@ -424,121 +423,121 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_i64(visitor)
     }
 
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_i64(visitor)
     }
 
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_i64(visitor)
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_integer(visitor)
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_u64(visitor)
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_u64(visitor)
     }
 
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_u64(visitor)
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_integer(visitor)
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_f64(visitor)
     }
 
     fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         visitor.visit_f64(self.deserialize_float()?)
     }
 
     fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         // Parse a string, check that it is one character, call `visit_char`.
         unimplemented!()
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         visitor.visit_string(self.parse_string()?)
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_str(visitor)
     }
 
     fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.next_char()?;
         visitor.visit_unit()
@@ -550,8 +549,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         _name: &'static str,
         _visitor: V,
     ) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
@@ -561,23 +560,23 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         _name: &'static str,
         _visitor: V,
     ) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         let _ = self.next_char()?;
         visitor.visit_seq(SeqAccess::new(self))
     }
 
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_seq(visitor)
     }
@@ -588,15 +587,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         _len: usize,
         _visitor: V,
     ) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         let _ = self.next_char()?;
         visitor.visit_map(MapAccess::new(self))
@@ -608,8 +607,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         _fields: &'static [&'static str],
         _visitor: V,
     ) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
@@ -620,22 +619,22 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         _variants: &'static [&'static str],
         _visitor: V,
     ) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
@@ -655,7 +654,8 @@ impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> std::result::Result<Option<T::Value>, Self::Error>
-        where T: DeserializeSeed<'de>
+    where
+        T: DeserializeSeed<'de>,
     {
         match self.de.peek_char()? {
             ARRAY_END_TOKEN => {
@@ -681,7 +681,8 @@ impl<'de, 'a> de::MapAccess<'de> for MapAccess<'a, 'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> std::result::Result<Option<K::Value>, Self::Error>
-        where K: DeserializeSeed<'de>
+    where
+        K: DeserializeSeed<'de>,
     {
         match self.de.peek_char()? {
             OBJECT_END_TOKEN => {
@@ -693,15 +694,16 @@ impl<'de, 'a> de::MapAccess<'de> for MapAccess<'a, 'de> {
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
-        where V: DeserializeSeed<'de>
+    where
+        V: DeserializeSeed<'de>,
     {
         Ok(seed.deserialize(&mut *self.de)?)
     }
 }
 
 pub fn from_str<'a, T>(s: &'a str) -> Result<T>
-    where
-        T: Deserialize<'a>,
+where
+    T: Deserialize<'a>,
 {
     let mut deserializer = Deserializer::from_str(s);
     let t = T::deserialize(&mut deserializer)?;

@@ -1,6 +1,6 @@
+use crate::ser::test_stringify;
 use indexmap::{indexmap, IndexMap};
 use serde_zipson::value::{Number, Value};
-use crate::ser::{test_stringify};
 
 #[test]
 fn test_empty_object() {

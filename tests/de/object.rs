@@ -1,7 +1,7 @@
-use indexmap::{IndexMap, indexmap};
+use crate::de::test_parse;
+use indexmap::{indexmap, IndexMap};
 use serde_zipson;
 use serde_zipson::value::{Number, Value};
-use crate::de::test_parse;
 
 #[test]
 fn test_empty_object() {

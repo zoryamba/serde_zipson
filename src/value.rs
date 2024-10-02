@@ -1,9 +1,9 @@
-use indexmap::{IndexMap};
+use indexmap::IndexMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Number {
     Int(i64),
-    Float(f64)
+    Float(f64),
 }
 
 #[derive(Debug, PartialEq, Clone)]

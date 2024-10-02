@@ -1,5 +1,5 @@
-use serde_zipson::value::{Number, Value};
 use crate::de::test_parse;
+use serde_zipson::value::{Number, Value};
 
 #[test]
 fn test_one_of_each() {
