@@ -516,13 +516,13 @@ impl Serialize for Value {
         S: serde::Serializer,
     {
         match self {
+            Value::Undefined => serializer.serialize_unit(),
             Value::Null => serializer.serialize_unit(),
             Value::Bool(v) => serializer.serialize_bool(*v),
             Value::Number(n) => n.serialize(serializer),
             Value::Array(v) => v.serialize(serializer),
             Value::Object(v) => v.serialize(serializer),
             Value::String(v) => serializer.serialize_str(v),
-            _ => unimplemented!()
         }
     }
 }
