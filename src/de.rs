@@ -339,6 +339,11 @@ impl<'de> Deserialize<'de> for Value {
                 Ok(Value::Number(Number::Int(number)))
             }
 
+            fn visit_u64<E>(self, number: u64) -> std::result::Result<Value, E>
+            {
+                Ok(Value::Number(Number::Int(number as i64)))
+            }
+
             fn visit_f64<E>(self, number: f64) -> std::result::Result<Value, E>
             {
                 Ok(Value::Number(Number::Float(number)))
