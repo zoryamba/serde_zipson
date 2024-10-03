@@ -4,7 +4,6 @@ use crate::value::{Number, Value};
 use chrono::DateTime;
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
-use std::result;
 
 struct InvertedIndex {
     integers: IndexMap<i64, String>,
@@ -511,7 +510,7 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
 }
 
 impl Serialize for Value {
-    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -520,15 +519,15 @@ impl Serialize for Value {
             Value::Null => serializer.serialize_unit(),
             Value::Bool(v) => serializer.serialize_bool(*v),
             Value::Number(n) => n.serialize(serializer),
+            Value::String(v) => serializer.serialize_str(v),
             Value::Array(v) => v.serialize(serializer),
             Value::Object(v) => v.serialize(serializer),
-            Value::String(v) => serializer.serialize_str(v),
         }
     }
 }
 
 impl Serialize for Number {
-    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
