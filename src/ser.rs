@@ -13,14 +13,15 @@ struct InvertedIndex {
     lp_dates: IndexMap<String, String>,
 }
 
-pub struct Serializer {
+pub struct Serializer<'a> {
     output: String,
     index: InvertedIndex,
     full_precision_floats: bool,
     detect_utc_timestamps: bool,
+    last_value: Option<&'a Value>,
 }
 
-impl Serializer {
+impl<'a> Serializer<'a> {
     fn new(full_precision_floats: bool, detect_utc_timestamps: bool) -> Self {
         Serializer {
             output: String::new(),
@@ -33,6 +34,7 @@ impl Serializer {
             },
             full_precision_floats,
             detect_utc_timestamps,
+            last_value: None,
         }
     }
 
@@ -167,7 +169,7 @@ impl Serializer {
     }
 }
 
-impl<'a> ser::Serializer for &'a mut Serializer {
+impl<'a> ser::Serializer for &'a mut Serializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -387,7 +389,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeSeq for &'a mut Serializer {
+impl<'a> ser::SerializeSeq for &'a mut Serializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -404,7 +406,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeTuple for &'a mut Serializer {
+impl<'a> ser::SerializeTuple for &'a mut Serializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -420,7 +422,7 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
+impl<'a> ser::SerializeTupleStruct for &'a mut Serializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -436,7 +438,7 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
+impl<'a> ser::SerializeTupleVariant for &'a mut Serializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -452,7 +454,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeMap for &'a mut Serializer {
+impl<'a> ser::SerializeMap for &'a mut Serializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -476,7 +478,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeStruct for &'a mut Serializer {
+impl<'a> ser::SerializeStruct for &'a mut Serializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -493,7 +495,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
 }
 
 
-impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
+impl<'a> ser::SerializeStructVariant for &'a mut Serializer<'a> {
     type Ok = ();
     type Error = Error;
 
