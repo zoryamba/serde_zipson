@@ -49,6 +49,9 @@ pub const FLOAT_COMPRESSION_PRECISION: f64 = 1000_f64;
 
 pub const ARRAY_START_TOKEN: char = '|';
 pub const ARRAY_END_TOKEN: char = '÷';
+pub const ARRAY_REPEAT_TOKEN: char = 'þ';
+pub const ARRAY_REPEAT_MANY_TOKEN: char = '^';
+pub const ARRAY_REPEAT_COUNT_THRESHOLD: u8 = 4;
 pub const OBJECT_START_TOKEN: char = '{';
 pub const OBJECT_END_TOKEN: char = '}';
 

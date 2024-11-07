@@ -40,6 +40,7 @@ pub enum Error {
     ExpectedMapEnd,
     ExpectedEnum,
     TrailingCharacters,
+    UnexpectedRepeatToken,
 }
 
 impl ser::Error for Error {

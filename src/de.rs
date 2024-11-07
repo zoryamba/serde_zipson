@@ -1,4 +1,4 @@
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_REPEAT_MANY_TOKEN, ARRAY_REPEAT_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -645,11 +645,38 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 struct SeqAccess<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
+    last_value: Option<Value>,
+    repeat: i64,
 }
 
 impl<'a, 'de: 'a> SeqAccess<'a, 'de> {
     fn new(de: &'a mut Deserializer<'de>) -> Self {
-        Self { de }
+        Self {
+            de,
+            last_value: None,
+            repeat: 0,
+        }
+    }
+
+    fn get_last(&mut self) -> Result<Value> {
+        let next_char = self.de.peek_char()?;
+
+        let res = if self.repeat > 1 || next_char == ARRAY_REPEAT_TOKEN || next_char == ARRAY_REPEAT_MANY_TOKEN {
+            self.last_value
+                .as_ref()
+                .ok_or(Error::UnexpectedRepeatToken)?
+                .clone()
+        } else {
+            self.last_value
+                .take()
+                .ok_or(Error::UnexpectedRepeatToken)?
+        };
+
+        if self.repeat > 0 {
+            self.repeat -= 1;
+        }
+
+        Ok(res)
     }
 }
 
@@ -660,12 +687,48 @@ impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
     where
         T: DeserializeSeed<'de>,
     {
+        if self.repeat > 0 {
+            let last_value = self.get_last()?;
+            return Ok(Some(seed.deserialize(last_value)?));
+        }
+
         match self.de.peek_char()? {
             ARRAY_END_TOKEN => {
                 self.de.next_char()?;
                 Ok(None)
             }
-            _ => Ok(Some(seed.deserialize(&mut *self.de)?))
+            ARRAY_REPEAT_TOKEN => {
+                self.de.next_char()?;
+
+                let last_value = self.get_last()?;
+
+                Ok(Some(seed.deserialize(last_value)?))
+            }
+            ARRAY_REPEAT_MANY_TOKEN => {
+                self.de.next_char()?;
+                self.repeat = self.de.parse_integer()?;
+
+                if self.repeat < 0 {
+                    self.repeat = 0;
+                }
+                if self.repeat == 0 {
+                    return self.next_element_seed(seed);
+                }
+
+                let last_value = self.get_last()?;
+
+                Ok(Some(seed.deserialize(last_value)?))
+            }
+            _ => {
+                let v = Value::deserialize(&mut *self.de)?;
+                let next_char = self.de.peek_char()?;
+                self.last_value = if next_char == ARRAY_REPEAT_TOKEN || next_char == ARRAY_REPEAT_MANY_TOKEN {
+                    Some(v.clone())
+                } else {
+                    None
+                };
+                Ok(Some(seed.deserialize(v)?))
+            }
         }
     }
 }

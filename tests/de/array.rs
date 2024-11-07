@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use crate::de::test_parse;
 use serde_zipson::value::{Number, Value};
 
@@ -97,4 +98,54 @@ fn test_one_date() {
 #[test]
 fn test_one_lp_date() {
     test_parse("|±1739m÷", Value::Array(vec![Value::String("2022-02-24T04:30:00.000Z".into())]));
+}
+
+#[test]
+fn test_repeat_scalar() {
+    test_parse("|´x´þ÷", Value::Array(vec![Value::String("x".into()), Value::String("x".into())]));
+}
+
+#[test]
+fn test_repeat_array() {
+    test_parse("||´x´þ÷þ÷", Value::Array(vec![
+        Value::Array(vec![
+            Value::String("x".into()),
+            Value::String("x".into()),
+        ]),
+        Value::Array(vec![
+            Value::String("x".into()),
+            Value::String("x".into()),
+        ]),
+    ]));
+}
+
+#[test]
+fn test_repeat_object() {
+    test_parse("|{´x´´x´}þ÷", Value::Array(vec![
+        Value::Object(IndexMap::from([("x".into(), Value::String("x".into()))])),
+        Value::Object(IndexMap::from([("x".into(), Value::String("x".into()))])),
+    ]));
+}
+
+#[test]
+fn test_repeat_scalar_multiple() {
+    test_parse("|´x´þþ´y´´z´þ÷", Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("y".into()),
+        Value::String("z".into()),
+        Value::String("z".into()),
+    ]));
+}
+
+#[test]
+fn test_repeat_many() {
+    test_parse("|´x´þ^2þ÷", Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+    ]));
 }
