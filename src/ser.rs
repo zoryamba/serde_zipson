@@ -1,4 +1,4 @@
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKENS, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_REPEAT_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKENS, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 use chrono::DateTime;
@@ -13,15 +13,14 @@ struct InvertedIndex {
     lp_dates: IndexMap<String, String>,
 }
 
-pub struct Serializer<'a> {
+pub struct Serializer {
     output: String,
     index: InvertedIndex,
     full_precision_floats: bool,
     detect_utc_timestamps: bool,
-    last_value: Option<&'a Value>,
 }
 
-impl<'a> Serializer<'a> {
+impl Serializer {
     fn new(full_precision_floats: bool, detect_utc_timestamps: bool) -> Self {
         Serializer {
             output: String::new(),
@@ -34,7 +33,6 @@ impl<'a> Serializer<'a> {
             },
             full_precision_floats,
             detect_utc_timestamps,
-            last_value: None,
         }
     }
 
@@ -169,13 +167,13 @@ impl<'a> Serializer<'a> {
     }
 }
 
-impl<'a> ser::Serializer for &'a mut Serializer<'a> {
+impl<'a> ser::Serializer for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = Self;
-    type SerializeTuple = Self;
-    type SerializeTupleStruct = Self;
+    type SerializeSeq = SerializeSeq<'a>;
+    type SerializeTuple = SerializeSeq<'a>;
+    type SerializeTupleStruct = SerializeSeq<'a>;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
     type SerializeStruct = Self;
@@ -340,7 +338,10 @@ impl<'a> ser::Serializer for &'a mut Serializer<'a> {
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.output.push(ARRAY_START_TOKEN);
-        Ok(self)
+        Ok(SerializeSeq {
+            last_value: None,
+            serializer: self,
+        })
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -389,7 +390,12 @@ impl<'a> ser::Serializer for &'a mut Serializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeSeq for &'a mut Serializer<'a> {
+pub struct SerializeSeq<'a> {
+    last_value: Option<&'a Value>,
+    serializer: &'a mut Serializer,
+}
+
+impl<'a> ser::SerializeSeq for SerializeSeq<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -397,16 +403,23 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut **self)
+        if let Some(last_value) = self.last_value {
+            if last_value == value {
+                self.serializer.output.push(ARRAY_REPEAT_TOKEN);
+            }
+            Ok(())
+        } else {
+            value.serialize(&mut *self.serializer)
+        }
     }
 
     fn end(self) -> Result<()> {
-        self.output.push(ARRAY_END_TOKEN);
+        self.serializer.output.push(ARRAY_END_TOKEN);
         Ok(())
     }
 }
 
-impl<'a> ser::SerializeTuple for &'a mut Serializer<'a> {
+impl<'a> ser::SerializeTuple for SerializeSeq<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -422,7 +435,7 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeTupleStruct for &'a mut Serializer<'a> {
+impl<'a> ser::SerializeTupleStruct for SerializeSeq<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -438,7 +451,7 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeTupleVariant for &'a mut Serializer<'a> {
+impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
@@ -454,7 +467,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeMap for &'a mut Serializer<'a> {
+impl<'a> ser::SerializeMap for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
@@ -478,7 +491,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeStruct for &'a mut Serializer<'a> {
+impl<'a> ser::SerializeStruct for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
@@ -495,7 +508,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer<'a> {
 }
 
 
-impl<'a> ser::SerializeStructVariant for &'a mut Serializer<'a> {
+impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
