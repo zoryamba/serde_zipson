@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::constants::{ARRAY_END_TOKEN, ARRAY_REPEAT_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKENS, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
@@ -13,26 +15,36 @@ struct InvertedIndex {
     lp_dates: IndexMap<String, String>,
 }
 
+impl InvertedIndex {
+    fn new() -> Self {
+        InvertedIndex {
+            integers: IndexMap::new(),
+            floats: IndexMap::new(),
+            strings: IndexMap::new(),
+            dates: IndexMap::new(),
+            lp_dates: IndexMap::new(),
+        }
+    }
+}
+
 pub struct Serializer {
     output: String,
-    index: InvertedIndex,
+    index: Rc<RefCell<InvertedIndex>>,
     full_precision_floats: bool,
     detect_utc_timestamps: bool,
+    last_value: Option<String>,
 }
 
 impl Serializer {
-    fn new(full_precision_floats: bool, detect_utc_timestamps: bool) -> Self {
+    fn new(full_precision_floats: bool, detect_utc_timestamps: bool, index: Option<Rc<RefCell<InvertedIndex>>>) -> Self {
         Serializer {
             output: String::new(),
-            index: InvertedIndex {
-                integers: IndexMap::new(),
-                floats: IndexMap::new(),
-                strings: IndexMap::new(),
-                dates: IndexMap::new(),
-                lp_dates: IndexMap::new(),
+            index: if let Some(index) = index { index } else {
+                Rc::new(RefCell::new(InvertedIndex::new()))
             },
             full_precision_floats,
             detect_utc_timestamps,
+            last_value: None,
         }
     }
 
@@ -95,18 +107,15 @@ impl Serializer {
                 let is_low_precision = low_precision_date % 1_f64 == 0_f64;
 
                 if is_low_precision {
-                    let found_ref = self.index.lp_dates.get(v);
-                    if let Some(found) = found_ref {
-                        self.output.push(REF_LP_DATE_TOKEN);
-                        self.output += &found;
+                    if self.try_index_lp_date(v) {
                         return Ok(());
                     }
 
                     let res = self.serialize_integer(low_precision_date as i64)?;
-                    let index = self.serialize_integer(self.index.lp_dates.len() as i64)?;
+                    let index = self.serialize_integer(self.get_lp_dates_len() as i64)?;
 
                     if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
-                        self.index.lp_dates.insert(v.to_string(), index);
+                        self.add_lp_date(v.to_string(), index);
                         self.output.push(LP_DATE_TOKEN);
                         self.output += &res;
                     } else {
@@ -114,18 +123,15 @@ impl Serializer {
                         self.output += &res;
                     }
                 } else {
-                    let found_ref = self.index.dates.get(v);
-                    if let Some(found) = found_ref {
-                        self.output.push(REF_DATE_TOKEN);
-                        self.output += &found;
+                    if self.try_index_date(v) {
                         return Ok(());
                     }
 
                     let res = self.serialize_integer(millis)?;
-                    let index = self.serialize_integer(self.index.dates.len() as i64)?;
+                    let index = self.serialize_integer(self.get_dates_len() as i64)?;
 
                     if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
-                        self.index.dates.insert(v.to_string(), index);
+                        self.add_date(v.to_string(), index);
                         self.output.push(DATE_TOKEN);
                         self.output += &res;
                     } else {
@@ -141,19 +147,16 @@ impl Serializer {
     }
 
     fn serialize_string(&mut self, v: &str) -> Result<()> {
-        let found_ref = self.index.strings.get(v);
-        if let Some(found) = found_ref {
-            self.output.push(REF_STRING_TOKEN);
-            self.output += &found;
+        if self.try_index_string(v) {
             return Ok(());
         }
 
         let escaped = v.replace(ESCAPE_CHARACTER, &ESCAPED_ESCAPE_CHARACTER);
         let escaped_token = escaped.replace(STRING_TOKEN, &ESCAPED_STRING_TOKEN);
-        let index = self.serialize_integer(self.index.strings.len() as i64)?;
+        let index = self.serialize_integer(self.get_strings_len() as i64)?;
 
         if index.chars().collect::<Vec<_>>().len() < escaped_token.chars().collect::<Vec<_>>().len() {
-            self.index.strings.insert(v.to_string(), index);
+            self.add_string(v.to_string(), index);
             self.output.push(STRING_TOKEN);
             self.output += &escaped_token;
             self.output.push(STRING_TOKEN);
@@ -165,15 +168,106 @@ impl Serializer {
 
         Ok(())
     }
+
+    fn add_integer(&self, key: i64, value: String) {
+        self.index.borrow_mut().integers.insert(key, value);
+    }
+    fn try_index_integer(&mut self, key: &i64) -> bool {
+        let index = self.index.borrow();
+        let found_ref = index.integers.get(key);
+
+        if let Some(found) = found_ref {
+            self.output.push(REF_INTEGER_TOKEN);
+            self.output += &found;
+            true
+        } else {
+            false
+        }
+    }
+    fn get_integers_len(&self) -> usize {
+        self.index.borrow().integers.len()
+    }
+    fn add_float(&self, key: String, value: String) {
+        self.index.borrow_mut().floats.insert(key, value);
+    }
+    fn try_index_float(&mut self, key: &str) -> bool {
+        let index = self.index.borrow();
+        let found_ref = index.floats.get(key);
+
+        if let Some(found) = found_ref {
+            self.output.push(REF_FLOAT_TOKEN);
+            self.output += &found;
+            true
+        } else {
+            false
+        }
+    }
+    fn get_floats_len(&self) -> usize {
+        self.index.borrow().floats.len()
+    }
+    fn add_string(&self, key: String, value: String) {
+        self.index.borrow_mut().strings.insert(key, value);
+    }
+    fn try_index_string(&mut self, key: &str) -> bool {
+        let index = self.index.borrow();
+
+        let found_ref = index.strings.get(key);
+        if let Some(found) = found_ref {
+            self.output.push(REF_STRING_TOKEN);
+            self.output += &found;
+            true
+        } else {
+            false
+        }
+    }
+    fn get_strings_len(&self) -> usize {
+        self.index.borrow().strings.len()
+    }
+    fn add_date(&self, key: String, value: String) {
+        self.index.borrow_mut().dates.insert(key, value);
+    }
+    fn try_index_date(&mut self, key: &str) -> bool {
+        let index = self.index.borrow();
+
+        let found_ref = index.dates.get(key);
+        if let Some(found) = found_ref {
+            self.output.push(REF_DATE_TOKEN);
+            self.output += &found;
+            true
+        } else {
+            false
+        }
+    }
+    fn get_dates_len(&self) -> usize {
+        self.index.borrow().dates.len()
+    }
+    fn add_lp_date(&self, key: String, value: String) {
+        self.index.borrow_mut().lp_dates.insert(key, value);
+    }
+    fn try_index_lp_date(&mut self, key: &str) -> bool {
+        let index = self.index.borrow();
+
+        let found_ref = index.lp_dates.get(key);
+        if let Some(found) = found_ref {
+            self.output.push(REF_LP_DATE_TOKEN);
+            self.output += &found;
+            true
+        } else {
+            false
+        }
+    }
+    fn get_lp_dates_len(&self) -> usize {
+        self.index.borrow().lp_dates.len()
+    }
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = SerializeSeq<'a>;
-    type SerializeTuple = SerializeSeq<'a>;
-    type SerializeTupleStruct = SerializeSeq<'a>;
+    type SerializeSeq = Self;
+    type SerializeTuple = Self;
+    type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
     type SerializeStruct = Self;
@@ -201,19 +295,15 @@ impl<'a> ser::Serializer for &'a mut Serializer {
             self.output.push(INTEGER_SMALL_TOKENS[(v + INTEGER_SMALL_TOKEN_ELEMENT_OFFSET) as usize]);
             return Ok(());
         }
-        let found_ref = self.index.integers.get(&v);
-
-        if let Some(found) = found_ref {
-            self.output.push(REF_INTEGER_TOKEN);
-            self.output += &found;
+        if self.try_index_integer(&v) {
             return Ok(());
         }
 
         let res = self.serialize_integer(v)?;
-        let index = self.serialize_integer(self.index.integers.len() as i64)?;
+        let index = self.serialize_integer(self.get_integers_len() as i64)?;
 
         if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
-            self.index.integers.insert(v, index);
+            self.add_integer(v, index);
             self.output.push(INTEGER_TOKEN);
             self.output += &res;
         } else {
@@ -245,18 +335,15 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_f64(self, v: f64) -> Result<()> {
         let res = self.serialize_float(v)?;
-        let found_ref = self.index.floats.get(&res);
 
-        if let Some(found) = found_ref {
-            self.output.push(REF_FLOAT_TOKEN);
-            self.output += &found;
+        if self.try_index_float(&res) {
             return Ok(());
         }
 
-        let index = self.serialize_integer(self.index.floats.len() as i64)?;
+        let index = self.serialize_integer(self.get_floats_len() as i64)?;
 
         if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
-            self.index.floats.insert(res.clone(), index);
+            self.add_float(res.clone(), index);
             self.output.push(FLOAT_TOKEN);
             self.output += &res;
         } else {
@@ -338,10 +425,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.output.push(ARRAY_START_TOKEN);
-        Ok(SerializeSeq {
-            last_value: None,
-            serializer: self,
-        })
+        self.last_value = None;
+        Ok(self)
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -390,12 +475,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 }
 
-pub struct SerializeSeq<'a> {
-    last_value: Option<&'a Value>,
-    serializer: &'a mut Serializer,
-}
-
-impl<'a> ser::SerializeSeq for SerializeSeq<'a> {
+impl<'a> ser::SerializeSeq for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
@@ -403,23 +483,34 @@ impl<'a> ser::SerializeSeq for SerializeSeq<'a> {
     where
         T: ?Sized + Serialize,
     {
-        if let Some(last_value) = self.last_value {
-            if last_value == value {
-                self.serializer.output.push(ARRAY_REPEAT_TOKEN);
+        // TODO: find a way not to spawn new serializers
+        let value_string = to_string_nested(
+            &value,
+            self.full_precision_floats,
+            self.detect_utc_timestamps,
+            self.index.clone()
+        )?;
+
+        if let Some(ref last_value) = self.last_value {
+            if *last_value == value_string {
+                self.output.push(ARRAY_REPEAT_TOKEN);
+                return Ok(());
             }
-            Ok(())
-        } else {
-            value.serialize(&mut *self.serializer)
         }
+        self.output.push_str(&value_string);
+        self.last_value = Some(value_string);
+
+        Ok(())
     }
 
     fn end(self) -> Result<()> {
-        self.serializer.output.push(ARRAY_END_TOKEN);
+        self.last_value = None;
+        self.output.push(ARRAY_END_TOKEN);
         Ok(())
     }
 }
 
-impl<'a> ser::SerializeTuple for SerializeSeq<'a> {
+impl<'a> ser::SerializeTuple for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
@@ -435,7 +526,7 @@ impl<'a> ser::SerializeTuple for SerializeSeq<'a> {
     }
 }
 
-impl<'a> ser::SerializeTupleStruct for SerializeSeq<'a> {
+impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
@@ -557,7 +648,16 @@ pub fn to_string<T>(value: &T, full_precision_floats: bool, detect_utc_timestamp
 where
     T: Serialize,
 {
-    let mut serializer = Serializer::new(full_precision_floats, detect_utc_timestamps);
+    let mut serializer = Serializer::new(full_precision_floats, detect_utc_timestamps, None);
+    value.serialize(&mut serializer)?;
+    Ok(serializer.output)
+}
+
+fn to_string_nested<T>(value: &T, full_precision_floats: bool, detect_utc_timestamps: bool, index: Rc<RefCell<InvertedIndex>>) -> Result<String>
+where
+    T: Serialize,
+{
+    let mut serializer = Serializer::new(full_precision_floats, detect_utc_timestamps, Some(index));
     value.serialize(&mut serializer)?;
     Ok(serializer.output)
 }
