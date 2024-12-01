@@ -50,15 +50,15 @@ impl<'de> Deserializer<'de> {
         let token = self.next_char()?;
         match token {
             ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => {
-                return visitor.visit_i16(ch as i16 - INTEGER_SMALL_TOKEN_OFFSET)
+                visitor.visit_i16(ch as i16 - INTEGER_SMALL_TOKEN_OFFSET)
             }
             UNREFERENCED_INTEGER_TOKEN => {
-                return visitor.visit_i64(self.parse_integer()?);
+                visitor.visit_i64(self.parse_integer()?)
             }
             INTEGER_TOKEN => {
                 let val = self.parse_integer()?;
                 self.index.integers.push(val);
-                return visitor.visit_i64(val);
+                visitor.visit_i64(val)
             }
             _ => Err(Error::ExpectedInteger)
         }
@@ -71,7 +71,7 @@ impl<'de> Deserializer<'de> {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
 
-        return visitor.visit_i64(*self.index.integers.get(ref_index).unwrap());
+        visitor.visit_i64(*self.index.integers.get(ref_index).unwrap())
     }
 
     fn parse_integer(&mut self) -> Result<i64>
@@ -150,7 +150,7 @@ impl<'de> Deserializer<'de> {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
 
-        return visitor.visit_f64(*self.index.floats.get(ref_index).unwrap());
+        visitor.visit_f64(*self.index.floats.get(ref_index).unwrap())
     }
 
     fn parse_float(&mut self) -> Result<f64>
@@ -203,7 +203,7 @@ impl<'de> Deserializer<'de> {
             REF_STRING_TOKEN => {
                 let ref_index = self.parse_integer()? as usize;
 
-                return Ok(self.index.strings.get(ref_index).unwrap().clone());
+                Ok(self.index.strings.get(ref_index).unwrap().clone())
             }
             _ => {
                 let mut chars: Vec<char> = vec![];
@@ -290,7 +290,7 @@ impl<'de> Deserializer<'de> {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
 
-        return visitor.visit_string(self.index.dates.get(ref_index).unwrap().clone());
+        visitor.visit_string(self.index.dates.get(ref_index).unwrap().clone())
     }
 
     fn deserialize_ref_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
@@ -300,7 +300,7 @@ impl<'de> Deserializer<'de> {
         self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
 
-        return visitor.visit_string(self.index.lp_dates.get(ref_index).unwrap().clone());
+        visitor.visit_string(self.index.lp_dates.get(ref_index).unwrap().clone())
     }
 }
 

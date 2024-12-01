@@ -70,11 +70,11 @@ impl Serializer {
             result.insert(0, '-');
         }
 
-        return Ok(result);
+        Ok(result)
     }
 
     fn serialize_float(&self, v: f64) -> Result<String> {
-        return if self.full_precision_floats {
+        if self.full_precision_floats {
             let v_string = v.to_string();
             let split: Vec<&str> = v_string.split('.').collect();
             let operator = if split[0] == "-0" && split.len() > 1 { "-" } else { "" };
@@ -95,13 +95,13 @@ impl Serializer {
                 FLOAT_REDUCED_PRECISION_DELIMITER.to_string(),
                 self.serialize_integer(fraction)?,
             ].join(""))
-        };
+        }
     }
 
     fn serialize_date(&mut self, v: &str) -> Result<()> {
         let date_result = DateTime::parse_from_rfc3339(v);
 
-        return match date_result {
+        match date_result {
             Ok(date) => {
                 let millis = date.timestamp_millis();
 
@@ -145,7 +145,7 @@ impl Serializer {
                 Ok(())
             }
             _ => self.serialize_string(v)
-        };
+        }
     }
 
     fn serialize_string(&mut self, v: &str) -> Result<()> {
