@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use crate::ser::{test_stringify, test_stringify_detect_dates, test_stringify_full_precision};
 use serde_zipson::value::{Number, Value};
 
@@ -101,4 +102,68 @@ fn test_one_date() {
 #[test]
 fn test_one_lp_date() {
     test_stringify_detect_dates(Value::Array(vec![Value::String("2022-02-24T04:30:00.000Z".into())]), "|±1739m÷");
+}
+
+#[test]
+fn test_repeat_scalar() {
+    test_stringify(Value::Array(vec![Value::String("x".into()), Value::String("x".into())]), "|´x´þ÷");
+}
+
+#[test]
+fn test_repeat_array() {
+    test_stringify(Value::Array(vec![
+        Value::Array(vec![
+            Value::String("x".into()),
+            Value::String("x".into()),
+        ]),
+        Value::Array(vec![
+            Value::String("x".into()),
+            Value::String("x".into()),
+        ]),
+    ]), "||´x´þ÷þ÷");
+}
+
+#[test]
+fn test_repeat_object() {
+    test_stringify(Value::Array(vec![
+        Value::Object(IndexMap::from([("x".into(), Value::String("x".into()))])),
+        Value::Object(IndexMap::from([("x".into(), Value::String("x".into()))])),
+    ]), "|{´x´´x´}þ÷");
+}
+
+#[test]
+fn test_repeat_scalar_multiple() {
+    test_stringify(Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("y".into()),
+        Value::String("z".into()),
+        Value::String("z".into()),
+    ]), "|´x´þþ´y´´z´þ÷");
+}
+
+#[test]
+fn test_repeat_many() {
+    test_stringify(Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+    ]), "|´x´þþþ^2÷");
+}
+
+#[test]
+fn test_repeat_many_with_trailing() {
+    test_stringify(Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("y".into()),
+    ]), "|´x´þþþ^2´y´÷");
 }
