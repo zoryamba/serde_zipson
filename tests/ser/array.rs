@@ -142,3 +142,28 @@ fn test_repeat_scalar_multiple() {
         Value::String("z".into()),
     ]), "|´x´þþ´y´´z´þ÷");
 }
+
+#[test]
+fn test_repeat_many() {
+    test_stringify(Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+    ]), "|´x´þþþ^2÷");
+}
+
+#[test]
+fn test_repeat_many_with_trailing() {
+    test_stringify(Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("y".into()),
+    ]), "|´x´þþþ^2´y´÷");
+}

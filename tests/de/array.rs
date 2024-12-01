@@ -141,11 +141,25 @@ fn test_repeat_scalar_multiple() {
 
 #[test]
 fn test_repeat_many() {
-    test_parse("|´x´þ^2þ÷", Value::Array(vec![
+    test_parse("|´x´þ^2þþ÷", Value::Array(vec![
         Value::String("x".into()),
         Value::String("x".into()),
         Value::String("x".into()),
         Value::String("x".into()),
         Value::String("x".into()),
+        Value::String("x".into()),
+    ]));
+}
+
+#[test]
+fn test_repeat_many_with_trailing() {
+    test_parse("|´x´þ^2þþ´y´÷", Value::Array(vec![
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("x".into()),
+        Value::String("y".into()),
     ]));
 }

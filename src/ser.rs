@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_REPEAT_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKENS, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{ARRAY_END_TOKEN, ARRAY_REPEAT_COUNT_THRESHOLD, ARRAY_REPEAT_MANY_TOKEN, ARRAY_REPEAT_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKENS, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 use chrono::DateTime;
@@ -33,6 +33,7 @@ pub struct Serializer {
     full_precision_floats: bool,
     detect_utc_timestamps: bool,
     last_value: Option<String>,
+    repeat_count: i64,
 }
 
 impl Serializer {
@@ -45,6 +46,7 @@ impl Serializer {
             full_precision_floats,
             detect_utc_timestamps,
             last_value: None,
+            repeat_count: 0,
         }
     }
 
@@ -426,6 +428,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.output.push(ARRAY_START_TOKEN);
         self.last_value = None;
+        self.repeat_count = 0;
         Ok(self)
     }
 
@@ -491,10 +494,20 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
             self.index.clone()
         )?;
 
+        // not 1-st array element
         if let Some(ref last_value) = self.last_value {
+
+            // element repeated
             if *last_value == value_string {
-                self.output.push(ARRAY_REPEAT_TOKEN);
+                self.repeat_count += 1;
+                if self.repeat_count < ARRAY_REPEAT_COUNT_THRESHOLD {
+                    self.output.push(ARRAY_REPEAT_TOKEN);
+                }
                 return Ok(());
+            } else if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
+                self.output.push(ARRAY_REPEAT_MANY_TOKEN);
+                self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
+                self.repeat_count = 0;
             }
         }
         self.output.push_str(&value_string);
@@ -504,8 +517,12 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
-        self.last_value = None;
+        if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
+            self.output.push(ARRAY_REPEAT_MANY_TOKEN);
+            self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?)
+        }
         self.output.push(ARRAY_END_TOKEN);
+        self.last_value = None;
         Ok(())
     }
 }
