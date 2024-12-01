@@ -519,7 +519,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     fn end(self) -> Result<()> {
         if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
             self.output.push(ARRAY_REPEAT_MANY_TOKEN);
-            self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?)
+            self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
         }
         self.output.push(ARRAY_END_TOKEN);
         self.last_value = None;
