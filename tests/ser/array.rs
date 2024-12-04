@@ -167,3 +167,15 @@ fn test_repeat_many_with_trailing() {
         Value::String("y".into()),
     ]), "|´x´þþþ^2´y´÷");
 }
+
+#[test]
+fn test_repeat_indexed() {
+    test_stringify(Value::Array(vec![
+        Value::String("xyz".into()),
+        Value::String("xyz".into()),
+        Value::String("xyz".into()),
+        Value::String("xyz".into()),
+        Value::String("xyz".into()),
+        Value::String("xyz".into()),
+    ]), "|¨xyz¨ß0þþþ^1÷");
+}
