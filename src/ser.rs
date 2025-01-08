@@ -32,6 +32,8 @@ pub struct Serializer {
     index: Rc<RefCell<InvertedIndex>>,
     full_precision_floats: bool,
     detect_utc_timestamps: bool,
+
+    // TODO: move to sequence serializer
     last_value: Option<String>,
     repeat_count: i64,
 }
@@ -486,7 +488,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        // TODO: find a way not to spawn new serializers
+        // TODO: implement to_value serializer and compare values instead of strings
         let value_string = to_string_nested(
             &value,
             self.full_precision_floats,
@@ -494,24 +496,34 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
             self.index.clone()
         )?;
 
-        // not 1-st array element
-        if let Some(ref last_value) = self.last_value {
+        match self.last_value {
+            None => {
+                // first array element
+                self.output.push_str(&value_string);
+                self.last_value = Some(value_string);
+            }
+            Some(ref last_value) => {
+                // after 1-st array element
+                if *last_value == value_string {
+                    // element repeated
+                    self.repeat_count += 1;
+                    if self.repeat_count < ARRAY_REPEAT_COUNT_THRESHOLD {
+                        self.output.push(ARRAY_REPEAT_TOKEN);
+                    }
+                } else {
+                    // element not repeated
+                    if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
+                        // repeat many threshold reached
+                        self.output.push(ARRAY_REPEAT_MANY_TOKEN);
+                        self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
+                        self.repeat_count = 0;
+                    }
 
-            // element repeated
-            if *last_value == value_string {
-                self.repeat_count += 1;
-                if self.repeat_count < ARRAY_REPEAT_COUNT_THRESHOLD {
-                    self.output.push(ARRAY_REPEAT_TOKEN);
+                    self.output.push_str(&value_string);
+                    self.last_value = Some(value_string);
                 }
-                return Ok(());
-            } else if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
-                self.output.push(ARRAY_REPEAT_MANY_TOKEN);
-                self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
-                self.repeat_count = 0;
             }
         }
-        self.output.push_str(&value_string);
-        self.last_value = Some(value_string);
 
         Ok(())
     }
