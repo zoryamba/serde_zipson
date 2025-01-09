@@ -263,6 +263,23 @@ impl Serializer {
     fn get_lp_dates_len(&self) -> usize {
         self.index.borrow().lp_dates.len()
     }
+
+    fn handle_last_value(&mut self, curr_value: Option<&String>) -> Result<()> {
+        if let Some(ref last_value) = self.last_value {
+            if self.repeat_count == 0 {
+                self.output.push_str(last_value);
+            } else if self.repeat_count < ARRAY_REPEAT_COUNT_THRESHOLD {
+                self.output.push(ARRAY_REPEAT_TOKEN);
+            } else if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
+                if curr_value.is_none() || curr_value.unwrap() != last_value {
+                    self.output.push(ARRAY_REPEAT_MANY_TOKEN);
+                    self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
@@ -496,10 +513,11 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
             self.index.clone()
         )?;
 
+        let _ = self.handle_last_value(Some(&value_string));
+
         match self.last_value {
             None => {
                 // first array element
-                self.output.push_str(&value_string);
                 self.last_value = Some(value_string);
             }
             Some(ref last_value) => {
@@ -507,20 +525,10 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
                 if *last_value == value_string {
                     // element repeated
                     self.repeat_count += 1;
-                    if self.repeat_count < ARRAY_REPEAT_COUNT_THRESHOLD {
-                        self.output.push(ARRAY_REPEAT_TOKEN);
-                    }
                 } else {
                     // element not repeated
-                    if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
-                        // repeat many threshold reached
-                        self.output.push(ARRAY_REPEAT_MANY_TOKEN);
-                        self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
-                        self.repeat_count = 0;
-                    }
-
-                    self.output.push_str(&value_string);
                     self.last_value = Some(value_string);
+                    self.repeat_count = 0;
                 }
             }
         }
@@ -529,12 +537,12 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
-        if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
-            self.output.push(ARRAY_REPEAT_MANY_TOKEN);
-            self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
-        }
-        self.output.push(ARRAY_END_TOKEN);
+        let _ = self.handle_last_value(None);
+
         self.last_value = None;
+        self.repeat_count = 0;
+
+        self.output.push(ARRAY_END_TOKEN);
         Ok(())
     }
 }
