@@ -32,10 +32,6 @@ pub struct Serializer {
     index: Rc<RefCell<InvertedIndex>>,
     full_precision_floats: bool,
     detect_utc_timestamps: bool,
-
-    // TODO: move to sequence serializer
-    last_value: Option<String>,
-    repeat_count: i64,
 }
 
 impl Serializer {
@@ -47,12 +43,10 @@ impl Serializer {
             },
             full_precision_floats,
             detect_utc_timestamps,
-            last_value: None,
-            repeat_count: 0,
         }
     }
 
-    fn serialize_integer(&self, v: i64) -> Result<String> {
+    fn serialize_integer(v: i64) -> Result<String> {
         if v == 0 {
             return Ok('0'.into());
         }
@@ -82,7 +76,7 @@ impl Serializer {
             let operator = if split[0] == "-0" && split.len() > 1 { "-" } else { "" };
             Ok([
                 operator.to_string(),
-                self.serialize_integer(split[0].parse::<i64>().unwrap())?,
+                Self::serialize_integer(split[0].parse::<i64>().unwrap())?,
                 FLOAT_FULL_PRECISION_DELIMITER.to_string(),
                 if split.len() > 1 { split[1].to_string() } else { '0'.to_string() }
             ].join(""))
@@ -93,9 +87,9 @@ impl Serializer {
             let fraction = ((v % 1.) * FLOAT_COMPRESSION_PRECISION).round() as i64;
 
             Ok([
-                self.serialize_integer(integer)?,
+                Self::serialize_integer(integer)?,
                 FLOAT_REDUCED_PRECISION_DELIMITER.to_string(),
-                self.serialize_integer(fraction)?,
+                Self::serialize_integer(fraction)?,
             ].join(""))
         }
     }
@@ -115,8 +109,8 @@ impl Serializer {
                         return Ok(());
                     }
 
-                    let res = self.serialize_integer(low_precision_date as i64)?;
-                    let index = self.serialize_integer(self.get_lp_dates_len() as i64)?;
+                    let res = Self::serialize_integer(low_precision_date as i64)?;
+                    let index = Self::serialize_integer(self.get_lp_dates_len() as i64)?;
 
                     if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
                         self.add_lp_date(v.to_string(), index);
@@ -131,8 +125,8 @@ impl Serializer {
                         return Ok(());
                     }
 
-                    let res = self.serialize_integer(millis)?;
-                    let index = self.serialize_integer(self.get_dates_len() as i64)?;
+                    let res = Self::serialize_integer(millis)?;
+                    let index = Self::serialize_integer(self.get_dates_len() as i64)?;
 
                     if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
                         self.add_date(v.to_string(), index);
@@ -157,7 +151,7 @@ impl Serializer {
 
         let escaped = v.replace(ESCAPE_CHARACTER, &ESCAPED_ESCAPE_CHARACTER);
         let escaped_token = escaped.replace(STRING_TOKEN, &ESCAPED_STRING_TOKEN);
-        let index = self.serialize_integer(self.get_strings_len() as i64)?;
+        let index = Self::serialize_integer(self.get_strings_len() as i64)?;
 
         if index.chars().collect::<Vec<_>>().len() < escaped_token.chars().collect::<Vec<_>>().len() {
             self.add_string(v.to_string(), index);
@@ -263,32 +257,15 @@ impl Serializer {
     fn get_lp_dates_len(&self) -> usize {
         self.index.borrow().lp_dates.len()
     }
-
-    fn handle_last_value(&mut self, is_repeat: bool) -> Result<()> {
-        if let Some(ref last_value) = self.last_value {
-            if self.repeat_count == 0 {
-                self.output.push_str(last_value);
-            } else if self.repeat_count < ARRAY_REPEAT_COUNT_THRESHOLD {
-                self.output.push(ARRAY_REPEAT_TOKEN);
-            } else if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
-                if !is_repeat {
-                    self.output.push(ARRAY_REPEAT_MANY_TOKEN);
-                    self.output.push_str(&self.serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
-                }
-            }
-        }
-
-        Ok(())
-    }
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = Self;
-    type SerializeTuple = Self;
-    type SerializeTupleStruct = Self;
+    type SerializeSeq = SerializeSeq<'a>;
+    type SerializeTuple = SerializeSeq<'a>;
+    type SerializeTupleStruct = SerializeSeq<'a>;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
     type SerializeStruct = Self;
@@ -320,8 +297,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
             return Ok(());
         }
 
-        let res = self.serialize_integer(v)?;
-        let index = self.serialize_integer(self.get_integers_len() as i64)?;
+        let res = Serializer::serialize_integer(v)?;
+        let index = Serializer::serialize_integer(self.get_integers_len() as i64)?;
 
         if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
             self.add_integer(v, index);
@@ -361,7 +338,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
             return Ok(());
         }
 
-        let index = self.serialize_integer(self.get_floats_len() as i64)?;
+        let index = Serializer::serialize_integer(self.get_floats_len() as i64)?;
 
         if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
             self.add_float(res.clone(), index);
@@ -441,14 +418,20 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
+        // TODO: serialize enums
         unimplemented!()
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.output.push(ARRAY_START_TOKEN);
-        self.last_value = None;
-        self.repeat_count = 0;
-        Ok(self)
+        Ok(SerializeSeq {
+            output: &mut self.output,
+            index: self.index.clone(),
+            full_precision_floats: self.full_precision_floats,
+            detect_utc_timestamps: self.detect_utc_timestamps,
+            last_value: None,
+            repeat_count: 0,
+        })
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -470,6 +453,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
+        // TODO: serialize enums
         unimplemented!()
     }
 
@@ -483,6 +467,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStruct> {
+        // TODO: serialize structs
         self.serialize_map(Some(len))
     }
 
@@ -493,11 +478,42 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
+        // TODO: serialize enums
         unimplemented!()
     }
 }
 
-impl<'a> ser::SerializeSeq for &'a mut Serializer {
+
+pub struct SerializeSeq<'a> {
+    output: &'a mut String,
+    index: Rc<RefCell<InvertedIndex>>,
+    full_precision_floats: bool,
+    detect_utc_timestamps: bool,
+
+    last_value: Option<String>,
+    repeat_count: i64,
+}
+
+impl SerializeSeq<'_> {
+    fn handle_last_value(&mut self, is_repeat: bool) -> Result<()> {
+        if let Some(ref last_value) = self.last_value {
+            if self.repeat_count == 0 {
+                self.output.push_str(last_value);
+            } else if self.repeat_count < ARRAY_REPEAT_COUNT_THRESHOLD {
+                self.output.push(ARRAY_REPEAT_TOKEN);
+            } else if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
+                if !is_repeat {
+                    self.output.push(ARRAY_REPEAT_MANY_TOKEN);
+                    self.output.push_str(&Serializer::serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> ser::SerializeSeq for SerializeSeq<'_> {
     type Ok = ();
     type Error = Error;
 
@@ -538,7 +554,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         Ok(())
     }
 
-    fn end(self) -> Result<()> {
+    fn end(mut self) -> Result<()> {
         self.handle_last_value(false)?;
 
         self.last_value = None;
@@ -549,38 +565,39 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeTuple for &'a mut Serializer {
+impl<'a> ser::SerializeTuple for SerializeSeq<'_> {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_element<T>(&mut self, _value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
     where
-        T: ?Sized + Serialize,
+        T: ?Sized + Serialize
     {
-        unimplemented!()
+        ser::SerializeSeq::serialize_element(self, value)
     }
 
-    fn end(self) -> Result<()> {
-        unimplemented!()
+    fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
+        ser::SerializeSeq::end(self)
     }
 }
 
-impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
+impl<'a> ser::SerializeTupleStruct for SerializeSeq<'_> {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
     where
-        T: ?Sized + Serialize,
+        T: ?Sized + Serialize
     {
-        unimplemented!()
+        ser::SerializeSeq::serialize_element(self, value)
     }
 
-    fn end(self) -> Result<()> {
-        unimplemented!()
+    fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
+        ser::SerializeSeq::end(self)
     }
 }
 
+// TODO: serialize enums
 impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
@@ -621,6 +638,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     }
 }
 
+// TODO: serialize structs
 impl<'a> ser::SerializeStruct for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
@@ -637,7 +655,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     }
 }
 
-
+// TODO: serialize enums
 impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
