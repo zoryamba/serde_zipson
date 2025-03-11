@@ -92,13 +92,13 @@ fn test_nested() {
             i: "".into(),
             longkey: true,
             nope: None,
-            yep: Value::Object(indexmap!{
+            yep: Value::Object(indexmap! {
                 "5".into() => Value::Array(vec![Value::Null]),
                 "string".into() => Value::String("\"\"asoidj{}sidofj".into()),
             }),
         },
         array_nest: vec![
-            indexmap!{
+            indexmap! {
                 "x".into() => Value::Number(Number::Int(1)),
                 "y".into() => Value::Number(Number::Int(212301230)),
                 "z".into() => Value::String("asdfioj{{}}".into()),
@@ -106,6 +106,6 @@ fn test_nested() {
                 "longkey".into() => Value::Bool(true),
                 "nope".into() => Value::Null,
             },
-        ]
+        ],
     }, "{´x´Ê´y´¢EMnFO´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§¨float¨£TQZ.6y¨nest¨{´x´Ê´y´º0ß3£0.52´z´ß0´i´´´ß1»ß2§¨yep¨{´5´|§÷¨string¨¨\"\"asoidj{}sidofj¨}}¨array_nest¨|{´x´Ê´y´º0´z´ß0´i´´´ß1»ß2§}÷}");
 }
