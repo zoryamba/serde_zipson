@@ -1,6 +1,10 @@
 use crate::ser::{test_stringify, test_stringify_detect_dates, test_stringify_full_precision};
+
 use serde_zipson::ser::to_string;
-use serde_zipson::value::{Number::{Float, Int}, Value};
+use serde_zipson::value::{
+    Number::{Float, Int},
+    Value,
+};
 
 #[test]
 fn test_null() {
@@ -52,23 +56,29 @@ fn test_big_integer() {
 
 #[test]
 fn test_unreferenced_integer() {
-    test_stringify(Value::Array(vec![
-        Value::Number(Int(61)),
-        Value::Number(Int(62)),
-        Value::Number(Int(61)),
-    ]), "|¤z¢10¤z÷");
+    test_stringify(
+        Value::Array(vec![
+            Value::Number(Int(61)),
+            Value::Number(Int(62)),
+            Value::Number(Int(61)),
+        ]),
+        "|¤z¢10¤z÷",
+    );
 }
 
 #[test]
 fn test_ref_integer() {
-    test_stringify(Value::Array(vec![
-        Value::Number(Int(111)),
-        Value::Number(Int(222)),
-        Value::Number(Int(111)),
-        Value::Number(Int(222)),
-        Value::Number(Int(111)),
-        Value::Number(Int(222)),
-    ]), "|¢1n¢3aº0º1º0º1÷");
+    test_stringify(
+        Value::Array(vec![
+            Value::Number(Int(111)),
+            Value::Number(Int(222)),
+            Value::Number(Int(111)),
+            Value::Number(Int(222)),
+            Value::Number(Int(111)),
+            Value::Number(Int(222)),
+        ]),
+        "|¢1n¢3aº0º1º0º1÷",
+    );
 }
 
 #[test]
@@ -115,21 +125,23 @@ fn test_unreferenced_float() {
 
 #[test]
 fn test_ref_float() {
-    test_stringify(Value::Array(vec![
-        Value::Number(Float(111.1)),
-        Value::Number(Float(222.2)),
-        Value::Number(Float(111.1)),
-        Value::Number(Float(222.2)),
-        Value::Number(Float(111.1)),
-        Value::Number(Float(222.2)),
-    ]), "|£1n.1c£3a.3EÝ0Ý1Ý0Ý1÷");
+    test_stringify(
+        Value::Array(vec![
+            Value::Number(Float(111.1)),
+            Value::Number(Float(222.2)),
+            Value::Number(Float(111.1)),
+            Value::Number(Float(222.2)),
+            Value::Number(Float(111.1)),
+            Value::Number(Float(222.2)),
+        ]),
+        "|£1n.1c£3a.3EÝ0Ý1Ý0Ý1÷",
+    );
 }
 
 #[test]
 fn test_empty_string() {
     test_stringify(Value::String("".into()), "´´");
 }
-
 
 #[test]
 fn test_short_string() {
@@ -163,7 +175,13 @@ fn test_short_string_escape_token() {
 
 #[test]
 fn test_long_string() {
-    test_stringify(Value::String("aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into()), "¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨");
+    test_stringify(
+        Value::String(
+            "aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc"
+                .into(),
+        ),
+        "¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨",
+    );
 }
 
 #[test]
@@ -198,42 +216,52 @@ fn test_string_date() {
 
 #[test]
 fn test_unreferenced_string() {
-    test_stringify_detect_dates(Value::Array(vec![
-        Value::String("x".into()),
-        Value::String("aaa".into()),
-        Value::String("x".into()),
-    ]), "|´x´¨aaa¨´x´÷");
+    test_stringify_detect_dates(
+        Value::Array(vec![
+            Value::String("x".into()),
+            Value::String("aaa".into()),
+            Value::String("x".into()),
+        ]),
+        "|´x´¨aaa¨´x´÷",
+    );
 }
 
 #[test]
 fn test_ref_string() {
-    test_stringify_detect_dates(Value::Array(vec![
-        Value::String("aaa".into()),
-        Value::String("bbb".into()),
-        Value::String("aaa".into()),
-        Value::String("bbb".into()),
-        Value::String("aaa".into()),
-        Value::String("bbb".into()),
-    ]), "|¨aaa¨¨bbb¨ß0ß1ß0ß1÷");
+    test_stringify_detect_dates(
+        Value::Array(vec![
+            Value::String("aaa".into()),
+            Value::String("bbb".into()),
+            Value::String("aaa".into()),
+            Value::String("bbb".into()),
+            Value::String("aaa".into()),
+            Value::String("bbb".into()),
+        ]),
+        "|¨aaa¨¨bbb¨ß0ß1ß0ß1÷",
+    );
 }
 
 #[test]
 fn test_unreferenced_date() {
-    test_stringify_detect_dates(Value::Array(vec![
-        Value::String("1970-01-01T00:00:00.001Z".into()),
-    ]), "|¿1÷");
+    test_stringify_detect_dates(
+        Value::Array(vec![Value::String("1970-01-01T00:00:00.001Z".into())]),
+        "|¿1÷",
+    );
 }
 
 #[test]
 fn test_ref_date() {
-    test_stringify_detect_dates(Value::Array(vec![
-        Value::String("2022-02-24T04:31:00.111Z".into()),
-        Value::String("2022-02-24T04:31:00.222Z".into()),
-        Value::String("2022-02-24T04:31:00.111Z".into()),
-        Value::String("2022-02-24T04:31:00.222Z".into()),
-        Value::String("2022-02-24T04:31:00.111Z".into()),
-        Value::String("2022-02-24T04:31:00.222Z".into()),
-    ]), "|øSyKTEStøSyKTEUg×0×1×0×1÷");
+    test_stringify_detect_dates(
+        Value::Array(vec![
+            Value::String("2022-02-24T04:31:00.111Z".into()),
+            Value::String("2022-02-24T04:31:00.222Z".into()),
+            Value::String("2022-02-24T04:31:00.111Z".into()),
+            Value::String("2022-02-24T04:31:00.222Z".into()),
+            Value::String("2022-02-24T04:31:00.111Z".into()),
+            Value::String("2022-02-24T04:31:00.222Z".into()),
+        ]),
+        "|øSyKTEStøSyKTEUg×0×1×0×1÷",
+    );
 }
 
 #[test]
@@ -243,19 +271,23 @@ fn test_string_lp_date() {
 
 #[test]
 fn test_unreferenced_lp_date() {
-    test_stringify_detect_dates(Value::Array(vec![
-        Value::String("1970-01-01T00:10:00.000Z".into()),
-    ]), "|ÿ6÷");
+    test_stringify_detect_dates(
+        Value::Array(vec![Value::String("1970-01-01T00:10:00.000Z".into())]),
+        "|ÿ6÷",
+    );
 }
 
 #[test]
 fn test_ref_lp_date() {
-    test_stringify_detect_dates(Value::Array(vec![
-        Value::String("2022-02-24T04:30:00.000Z".into()),
-        Value::String("2022-02-24T04:40:00.000Z".into()),
-        Value::String("2022-02-24T04:30:00.000Z".into()),
-        Value::String("2022-02-24T04:40:00.000Z".into()),
-        Value::String("2022-02-24T04:30:00.000Z".into()),
-        Value::String("2022-02-24T04:40:00.000Z".into()),
-    ]), "|±1739m±1739sü0ü1ü0ü1÷");
+    test_stringify_detect_dates(
+        Value::Array(vec![
+            Value::String("2022-02-24T04:30:00.000Z".into()),
+            Value::String("2022-02-24T04:40:00.000Z".into()),
+            Value::String("2022-02-24T04:30:00.000Z".into()),
+            Value::String("2022-02-24T04:40:00.000Z".into()),
+            Value::String("2022-02-24T04:30:00.000Z".into()),
+            Value::String("2022-02-24T04:40:00.000Z".into()),
+        ]),
+        "|±1739m±1739sü0ü1ü0ü1÷",
+    );
 }

@@ -1,9 +1,9 @@
 use serde_zipson::value::Value;
 
-pub mod scalar;
 pub mod array;
-pub mod object;
 pub mod array_mixed;
+pub mod object;
+pub mod scalar;
 
 fn test_stringify(value: Value, expected: &str) {
     let res = serde_zipson::ser::to_string::<Value>(&value, false, false);

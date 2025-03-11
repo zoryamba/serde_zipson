@@ -1,11 +1,22 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_REPEAT_COUNT_THRESHOLD, ARRAY_REPEAT_MANY_TOKEN, ARRAY_REPEAT_TOKEN, ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_REGEX, DATE_TOKEN, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN, ESCAPED_UNREFERENCED_STRING_TOKEN, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKENS, INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{
+    ARRAY_END_TOKEN, ARRAY_REPEAT_COUNT_THRESHOLD, ARRAY_REPEAT_MANY_TOKEN, ARRAY_REPEAT_TOKEN,
+    ARRAY_START_TOKEN, BASE_62, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION,
+    DATE_REGEX, DATE_TOKEN, ESCAPED_ESCAPE_CHARACTER, ESCAPED_STRING_TOKEN,
+    ESCAPED_UNREFERENCED_STRING_TOKEN, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION,
+    FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN,
+    INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKENS,
+    INTEGER_SMALL_TOKEN_ELEMENT_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN,
+    OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN,
+    REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN,
+    UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN,
+};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 use chrono::DateTime;
 use indexmap::IndexMap;
 use serde::ser::{self, Serialize};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 struct InvertedIndex {
     integers: IndexMap<i64, String>,
@@ -35,10 +46,16 @@ pub struct Serializer {
 }
 
 impl Serializer {
-    fn new(full_precision_floats: bool, detect_utc_timestamps: bool, index: Option<Rc<RefCell<InvertedIndex>>>) -> Self {
+    fn new(
+        full_precision_floats: bool,
+        detect_utc_timestamps: bool,
+        index: Option<Rc<RefCell<InvertedIndex>>>,
+    ) -> Self {
         Serializer {
             output: String::new(),
-            index: if let Some(index) = index { index } else {
+            index: if let Some(index) = index {
+                index
+            } else {
                 Rc::new(RefCell::new(InvertedIndex::new()))
             },
             full_precision_floats,
@@ -73,24 +90,38 @@ impl Serializer {
         if self.full_precision_floats {
             let v_string = v.to_string();
             let split: Vec<&str> = v_string.split('.').collect();
-            let operator = if split[0] == "-0" && split.len() > 1 { "-" } else { "" };
+            let operator = if split[0] == "-0" && split.len() > 1 {
+                "-"
+            } else {
+                ""
+            };
             Ok([
                 operator.to_string(),
                 Self::serialize_integer(split[0].parse::<i64>().unwrap())?,
                 FLOAT_FULL_PRECISION_DELIMITER.to_string(),
-                if split.len() > 1 { split[1].to_string() } else { '0'.to_string() }
-            ].join(""))
+                if split.len() > 1 {
+                    split[1].to_string()
+                } else {
+                    '0'.to_string()
+                },
+            ]
+            .join(""))
         } else {
             let v_string = v.to_string();
             let split: Vec<&str> = v_string.split('.').collect();
-            let integer = if split[0] == "-0" { 0 } else { split[0].parse::<i64>().unwrap() };
+            let integer = if split[0] == "-0" {
+                0
+            } else {
+                split[0].parse::<i64>().unwrap()
+            };
             let fraction = ((v % 1.) * FLOAT_COMPRESSION_PRECISION).round() as i64;
 
             Ok([
                 Self::serialize_integer(integer)?,
                 FLOAT_REDUCED_PRECISION_DELIMITER.to_string(),
                 Self::serialize_integer(fraction)?,
-            ].join(""))
+            ]
+            .join(""))
         }
     }
 
@@ -112,7 +143,9 @@ impl Serializer {
                     let res = Self::serialize_integer(low_precision_date as i64)?;
                     let index = Self::serialize_integer(self.get_lp_dates_len() as i64)?;
 
-                    if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
+                    if index.chars().collect::<Vec<_>>().len()
+                        < res.chars().collect::<Vec<_>>().len()
+                    {
                         self.add_lp_date(v.to_string(), index);
                         self.output.push(LP_DATE_TOKEN);
                         self.output += &res;
@@ -128,7 +161,9 @@ impl Serializer {
                     let res = Self::serialize_integer(millis)?;
                     let index = Self::serialize_integer(self.get_dates_len() as i64)?;
 
-                    if index.chars().collect::<Vec<_>>().len() < res.chars().collect::<Vec<_>>().len() {
+                    if index.chars().collect::<Vec<_>>().len()
+                        < res.chars().collect::<Vec<_>>().len()
+                    {
                         self.add_date(v.to_string(), index);
                         self.output.push(DATE_TOKEN);
                         self.output += &res;
@@ -140,7 +175,7 @@ impl Serializer {
 
                 Ok(())
             }
-            _ => self.serialize_string(v)
+            _ => self.serialize_string(v),
         }
     }
 
@@ -153,14 +188,18 @@ impl Serializer {
         let escaped_token = escaped.replace(STRING_TOKEN, &ESCAPED_STRING_TOKEN);
         let index = Self::serialize_integer(self.get_strings_len() as i64)?;
 
-        if index.chars().collect::<Vec<_>>().len() < escaped_token.chars().collect::<Vec<_>>().len() {
+        if index.chars().collect::<Vec<_>>().len() < escaped_token.chars().collect::<Vec<_>>().len()
+        {
             self.add_string(v.to_string(), index);
             self.output.push(STRING_TOKEN);
             self.output += &escaped_token;
             self.output.push(STRING_TOKEN);
         } else {
             self.output.push(UNREFERENCED_STRING_TOKEN);
-            self.output += &escaped.replace(UNREFERENCED_STRING_TOKEN, &ESCAPED_UNREFERENCED_STRING_TOKEN);
+            self.output += &escaped.replace(
+                UNREFERENCED_STRING_TOKEN,
+                &ESCAPED_UNREFERENCED_STRING_TOKEN,
+            );
             self.output.push(UNREFERENCED_STRING_TOKEN);
         }
 
@@ -272,7 +311,11 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
-        self.output.push(if v { BOOLEAN_TRUE_TOKEN } else { BOOLEAN_FALSE_TOKEN });
+        self.output.push(if v {
+            BOOLEAN_TRUE_TOKEN
+        } else {
+            BOOLEAN_FALSE_TOKEN
+        });
         Ok(())
     }
 
@@ -290,7 +333,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_i64(self, v: i64) -> Result<()> {
         if v > INTEGER_SMALL_EXCLUSIVE_BOUND_LOWER && v < INTEGER_SMALL_EXCLUSIVE_BOUND_UPPER {
-            self.output.push(INTEGER_SMALL_TOKENS[(v + INTEGER_SMALL_TOKEN_ELEMENT_OFFSET) as usize]);
+            self.output
+                .push(INTEGER_SMALL_TOKENS[(v + INTEGER_SMALL_TOKEN_ELEMENT_OFFSET) as usize]);
             return Ok(());
         }
         if self.try_index_integer(&v) {
@@ -397,11 +441,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.serialize_str(variant)
     }
 
-    fn serialize_newtype_struct<T>(
-        self,
-        _name: &'static str,
-        value: &T,
-    ) -> Result<()>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
@@ -462,11 +502,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(self)
     }
 
-    fn serialize_struct(
-        self,
-        _name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         // TODO: serialize structs
         self.serialize_map(Some(len))
     }
@@ -482,7 +518,6 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         unimplemented!()
     }
 }
-
 
 pub struct SerializeSeq<'a> {
     output: &'a mut String,
@@ -504,7 +539,9 @@ impl SerializeSeq<'_> {
             } else if self.repeat_count >= ARRAY_REPEAT_COUNT_THRESHOLD {
                 if !is_repeat {
                     self.output.push(ARRAY_REPEAT_MANY_TOKEN);
-                    self.output.push_str(&Serializer::serialize_integer(self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1)?);
+                    self.output.push_str(&Serializer::serialize_integer(
+                        self.repeat_count - ARRAY_REPEAT_COUNT_THRESHOLD + 1,
+                    )?);
                 }
             }
         }
@@ -526,7 +563,7 @@ impl<'a> ser::SerializeSeq for SerializeSeq<'_> {
             &value,
             self.full_precision_floats,
             self.detect_utc_timestamps,
-            self.index.clone()
+            self.index.clone(),
         )?;
 
         match self.last_value {
@@ -571,7 +608,7 @@ impl<'a> ser::SerializeTuple for SerializeSeq<'_> {
 
     fn serialize_element<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
     where
-        T: ?Sized + Serialize
+        T: ?Sized + Serialize,
     {
         ser::SerializeSeq::serialize_element(self, value)
     }
@@ -587,7 +624,7 @@ impl<'a> ser::SerializeTupleStruct for SerializeSeq<'_> {
 
     fn serialize_field<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
     where
-        T: ?Sized + Serialize
+        T: ?Sized + Serialize,
     {
         ser::SerializeSeq::serialize_element(self, value)
     }
@@ -701,7 +738,11 @@ impl Serialize for Number {
     }
 }
 
-pub fn to_string<T>(value: &T, full_precision_floats: bool, detect_utc_timestamps: bool) -> Result<String>
+pub fn to_string<T>(
+    value: &T,
+    full_precision_floats: bool,
+    detect_utc_timestamps: bool,
+) -> Result<String>
 where
     T: Serialize,
 {
@@ -710,7 +751,12 @@ where
     Ok(serializer.output)
 }
 
-fn to_string_nested<T>(value: &T, full_precision_floats: bool, detect_utc_timestamps: bool, index: Rc<RefCell<InvertedIndex>>) -> Result<String>
+fn to_string_nested<T>(
+    value: &T,
+    full_precision_floats: bool,
+    detect_utc_timestamps: bool,
+    index: Rc<RefCell<InvertedIndex>>,
+) -> Result<String>
 where
     T: Serialize,
 {

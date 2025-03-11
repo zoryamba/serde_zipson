@@ -1,4 +1,14 @@
-use crate::constants::{ARRAY_END_TOKEN, ARRAY_REPEAT_MANY_TOKEN, ARRAY_REPEAT_TOKEN, ARRAY_START_TOKEN, BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN, DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION, FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER, INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN, OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN, REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN, UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN};
+use crate::constants::{
+    ARRAY_END_TOKEN, ARRAY_REPEAT_MANY_TOKEN, ARRAY_REPEAT_TOKEN, ARRAY_START_TOKEN,
+    BOOLEAN_FALSE_TOKEN, BOOLEAN_TRUE_TOKEN, DATE_LOW_PRECISION, DATE_TOKEN,
+    DELIMITING_TOKENS_THRESHOLD, ESCAPE_CHARACTER, FLOAT_COMPRESSION_PRECISION,
+    FLOAT_FULL_PRECISION_DELIMITER, FLOAT_REDUCED_PRECISION_DELIMITER, FLOAT_TOKEN,
+    INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER, INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER,
+    INTEGER_SMALL_TOKEN_OFFSET, INTEGER_TOKEN, LP_DATE_TOKEN, NULL_TOKEN, OBJECT_END_TOKEN,
+    OBJECT_START_TOKEN, REF_DATE_TOKEN, REF_FLOAT_TOKEN, REF_INTEGER_TOKEN, REF_LP_DATE_TOKEN,
+    REF_STRING_TOKEN, STRING_TOKEN, UNREFERENCED_DATE_TOKEN, UNREFERENCED_FLOAT_TOKEN,
+    UNREFERENCED_INTEGER_TOKEN, UNREFERENCED_LP_DATE_TOKEN, UNREFERENCED_STRING_TOKEN,
+};
 use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -49,18 +59,18 @@ impl<'de> Deserializer<'de> {
     {
         let token = self.next_char()?;
         match token {
-            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => {
+            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER
+                && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER =>
+            {
                 visitor.visit_i16(ch as i16 - INTEGER_SMALL_TOKEN_OFFSET)
             }
-            UNREFERENCED_INTEGER_TOKEN => {
-                visitor.visit_i64(self.parse_integer()?)
-            }
+            UNREFERENCED_INTEGER_TOKEN => visitor.visit_i64(self.parse_integer()?),
             INTEGER_TOKEN => {
                 let val = self.parse_integer()?;
                 self.index.integers.push(val);
                 visitor.visit_i64(val)
             }
-            _ => Err(Error::ExpectedInteger)
+            _ => Err(Error::ExpectedInteger),
         }
     }
 
@@ -74,8 +84,7 @@ impl<'de> Deserializer<'de> {
         visitor.visit_i64(*self.index.integers.get(ref_index).unwrap())
     }
 
-    fn parse_integer(&mut self) -> Result<i64>
-    {
+    fn parse_integer(&mut self) -> Result<i64> {
         let mut ch = self.next_char()?;
 
         if ch == '0' {
@@ -108,14 +117,16 @@ impl<'de> Deserializer<'de> {
                     if ch as u8 > DELIMITING_TOKENS_THRESHOLD {
                         break;
                     }
-                    if ch == FLOAT_FULL_PRECISION_DELIMITER || ch == FLOAT_REDUCED_PRECISION_DELIMITER {
+                    if ch == FLOAT_FULL_PRECISION_DELIMITER
+                        || ch == FLOAT_REDUCED_PRECISION_DELIMITER
+                    {
                         break;
                     }
                 }
                 Err(Error::Eof) => {
                     break;
                 }
-                Err(err) => return Err(err)
+                Err(err) => return Err(err),
             }
 
             ch = self.next_char()?;
@@ -130,8 +141,7 @@ impl<'de> Deserializer<'de> {
         Ok(value)
     }
 
-    fn deserialize_float(&mut self) -> Result<f64>
-    {
+    fn deserialize_float(&mut self) -> Result<f64> {
         let token = self.next_char()?;
 
         let value = self.parse_float()?;
@@ -153,8 +163,7 @@ impl<'de> Deserializer<'de> {
         visitor.visit_f64(*self.index.floats.get(ref_index).unwrap())
     }
 
-    fn parse_float(&mut self) -> Result<f64>
-    {
+    fn parse_float(&mut self) -> Result<f64> {
         let negative = self.peek_char()? == '-';
 
         let integer = self.parse_integer()?;
@@ -162,7 +171,9 @@ impl<'de> Deserializer<'de> {
         let delimiter_token = self.next_char()?;
 
         let fraction: f64 = match delimiter_token {
-            FLOAT_REDUCED_PRECISION_DELIMITER => self.parse_integer()? as f64 / FLOAT_COMPRESSION_PRECISION,
+            FLOAT_REDUCED_PRECISION_DELIMITER => {
+                self.parse_integer()? as f64 / FLOAT_COMPRESSION_PRECISION
+            }
             FLOAT_FULL_PRECISION_DELIMITER => {
                 let mut res = if negative { "-0." } else { "0." }.to_string();
 
@@ -179,16 +190,16 @@ impl<'de> Deserializer<'de> {
                         Err(Error::Eof) => {
                             break;
                         }
-                        Err(err) => return Err(err)
+                        Err(err) => return Err(err),
                     }
                 }
 
                 match res.parse::<f64>() {
                     Ok(res) => res,
-                    Err(_) => return Err(Error::ExpectedFloat)
+                    Err(_) => return Err(Error::ExpectedFloat),
                 }
             }
-            _ => return Err(Error::ExpectedFloat)
+            _ => return Err(Error::ExpectedFloat),
         };
 
         let res = integer as f64 + fraction;
@@ -314,38 +325,31 @@ impl<'de> Deserialize<'de> for Value {
         impl<'de> Visitor<'de> for ValueVisitor {
             type Value = Value;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result
-            {
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a string key")
             }
 
-            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
-            {
+            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E> {
                 Ok(Value::Null)
             }
 
-            fn visit_bool<E>(self, bool: bool) -> std::result::Result<Self::Value, E>
-            {
+            fn visit_bool<E>(self, bool: bool) -> std::result::Result<Self::Value, E> {
                 Ok(Value::Bool(bool))
             }
 
-            fn visit_string<E>(self, str: String) -> std::result::Result<Value, E>
-            {
+            fn visit_string<E>(self, str: String) -> std::result::Result<Value, E> {
                 Ok(Value::String(str))
             }
 
-            fn visit_i64<E>(self, number: i64) -> std::result::Result<Value, E>
-            {
+            fn visit_i64<E>(self, number: i64) -> std::result::Result<Value, E> {
                 Ok(Value::Number(Number::Int(number)))
             }
 
-            fn visit_u64<E>(self, number: u64) -> std::result::Result<Value, E>
-            {
+            fn visit_u64<E>(self, number: u64) -> std::result::Result<Value, E> {
                 Ok(Value::Number(Number::Int(number as i64)))
             }
 
-            fn visit_f64<E>(self, number: f64) -> std::result::Result<Value, E>
-            {
+            fn visit_f64<E>(self, number: f64) -> std::result::Result<Value, E> {
                 Ok(Value::Number(Number::Float(number)))
             }
 
@@ -391,7 +395,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             NULL_TOKEN => self.deserialize_unit(visitor),
             BOOLEAN_TRUE_TOKEN => self.deserialize_bool(visitor),
             BOOLEAN_FALSE_TOKEN => self.deserialize_bool(visitor),
-            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER => self.deserialize_integer(visitor),
+            ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER
+                && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER =>
+            {
+                self.deserialize_integer(visitor)
+            }
             UNREFERENCED_INTEGER_TOKEN => self.deserialize_integer(visitor),
             INTEGER_TOKEN => self.deserialize_integer(visitor),
             REF_INTEGER_TOKEN => self.deserialize_ref_integer(visitor),
@@ -421,7 +429,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         match ch {
             BOOLEAN_TRUE_TOKEN => visitor.visit_bool(true),
             BOOLEAN_FALSE_TOKEN => visitor.visit_bool(false),
-            _ => Err(Error::ExpectedBoolean)
+            _ => Err(Error::ExpectedBoolean),
         }
     }
 
@@ -547,22 +555,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     // Unit struct means a named value containing no data.
-    fn deserialize_unit_struct<V>(
-        self,
-        _name: &'static str,
-        _visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
         unimplemented!()
     }
 
-    fn deserialize_newtype_struct<V>(
-        self,
-        _name: &'static str,
-        _visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -661,15 +661,16 @@ impl<'a, 'de: 'a> SeqAccess<'a, 'de> {
     fn get_last(&mut self) -> Result<Value> {
         let next_char = self.de.peek_char()?;
 
-        let res = if self.repeat > 1 || next_char == ARRAY_REPEAT_TOKEN || next_char == ARRAY_REPEAT_MANY_TOKEN {
+        let res = if self.repeat > 1
+            || next_char == ARRAY_REPEAT_TOKEN
+            || next_char == ARRAY_REPEAT_MANY_TOKEN
+        {
             self.last_value
                 .as_ref()
                 .ok_or(Error::UnexpectedRepeatToken)?
                 .clone()
         } else {
-            self.last_value
-                .take()
-                .ok_or(Error::UnexpectedRepeatToken)?
+            self.last_value.take().ok_or(Error::UnexpectedRepeatToken)?
         };
 
         if self.repeat > 0 {
@@ -683,7 +684,10 @@ impl<'a, 'de: 'a> SeqAccess<'a, 'de> {
 impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
     type Error = Error;
 
-    fn next_element_seed<T>(&mut self, seed: T) -> std::result::Result<Option<T::Value>, Self::Error>
+    fn next_element_seed<T>(
+        &mut self,
+        seed: T,
+    ) -> std::result::Result<Option<T::Value>, Self::Error>
     where
         T: DeserializeSeed<'de>,
     {
@@ -722,11 +726,12 @@ impl<'de, 'a> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
             _ => {
                 let v = Value::deserialize(&mut *self.de)?;
                 let next_char = self.de.peek_char()?;
-                self.last_value = if next_char == ARRAY_REPEAT_TOKEN || next_char == ARRAY_REPEAT_MANY_TOKEN {
-                    Some(v.clone())
-                } else {
-                    None
-                };
+                self.last_value =
+                    if next_char == ARRAY_REPEAT_TOKEN || next_char == ARRAY_REPEAT_MANY_TOKEN {
+                        Some(v.clone())
+                    } else {
+                        None
+                    };
                 Ok(Some(seed.deserialize(v)?))
             }
         }
@@ -755,7 +760,7 @@ impl<'de, 'a> de::MapAccess<'de> for MapAccess<'a, 'de> {
                 self.de.next_char()?;
                 Ok(None)
             }
-            _ => Ok(Some(seed.deserialize(&mut *self.de)?))
+            _ => Ok(Some(seed.deserialize(&mut *self.de)?)),
         }
     }
 

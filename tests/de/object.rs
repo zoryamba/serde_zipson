@@ -1,4 +1,5 @@
 use crate::de::test_parse;
+
 use indexmap::{indexmap, IndexMap};
 use serde_zipson;
 use serde_zipson::value::{Number, Value};
@@ -10,23 +11,29 @@ fn test_empty_object() {
 
 #[test]
 fn test_homogenous() {
-    test_parse("{´x´Ê´y´Ë´z´Ì}", Value::Object(indexmap! {
-        "x".into() => Value::Number(Number::Int(1)),
-        "y".into() => Value::Number(Number::Int(2)),
-        "z".into() => Value::Number(Number::Int(3)),
-    }));
+    test_parse(
+        "{´x´Ê´y´Ë´z´Ì}",
+        Value::Object(indexmap! {
+            "x".into() => Value::Number(Number::Int(1)),
+            "y".into() => Value::Number(Number::Int(2)),
+            "z".into() => Value::Number(Number::Int(3)),
+        }),
+    );
 }
 
 #[test]
 fn test_mixed() {
-    test_parse("{´x´Ê´y´¢EMnFO´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§}", Value::Object(indexmap! {
-        "x".into() => Value::Number(Number::Int(1)),
-        "y".into() => Value::Number(Number::Int(212301230)),
-        "z".into() => Value::String("asdfioj{{}}".into()),
-        "i".into() => Value::String("".into()),
-        "longkey".into() => Value::Bool(true),
-        "nope".into() => Value::Null,
-    }));
+    test_parse(
+        "{´x´Ê´y´¢EMnFO´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§}",
+        Value::Object(indexmap! {
+            "x".into() => Value::Number(Number::Int(1)),
+            "y".into() => Value::Number(Number::Int(212301230)),
+            "z".into() => Value::String("asdfioj{{}}".into()),
+            "i".into() => Value::String("".into()),
+            "longkey".into() => Value::Bool(true),
+            "nope".into() => Value::Null,
+        }),
+    );
 }
 
 #[test]

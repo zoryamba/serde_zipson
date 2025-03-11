@@ -1,8 +1,8 @@
-use std::vec;
-use indexmap::IndexMap;
-use serde::{de, forward_to_deserialize_any};
-use serde::de::{DeserializeSeed, Visitor};
 use crate::error::Error;
+use indexmap::IndexMap;
+use serde::de::{DeserializeSeed, Visitor};
+use serde::{de, forward_to_deserialize_any};
+use std::vec;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Number {
@@ -26,7 +26,7 @@ impl<'de> de::Deserializer<'de> for Value {
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         match self {
             Value::Undefined => visitor.visit_unit(),
@@ -35,7 +35,7 @@ impl<'de> de::Deserializer<'de> for Value {
             Value::Number(n) => match n {
                 Number::Float(f) => visitor.visit_f64(f),
                 Number::Int(i) => visitor.visit_i64(i),
-            }
+            },
             Value::String(v) => visitor.visit_string(v),
             Value::Array(v) => visitor.visit_seq(&mut SeqAccess::new(v)),
             Value::Object(v) => visitor.visit_map(&mut MapAccess::new(v)),
@@ -56,70 +56,93 @@ impl<'de> de::Deserializer<'de> for Value {
 
     fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
-    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_unit_struct<V>(
+        self,
+        _name: &'static str,
+        _visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
-    fn deserialize_newtype_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_newtype_struct<V>(
+        self,
+        _name: &'static str,
+        _visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
-    fn deserialize_tuple_struct<V>(self, _name: &'static str, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_tuple_struct<V>(
+        self,
+        _name: &'static str,
+        _len: usize,
+        _visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
-    fn deserialize_struct<V>(self, _name: &'static str, _fields: &'static [&'static str], _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_struct<V>(
+        self,
+        _name: &'static str,
+        _fields: &'static [&'static str],
+        _visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
-    fn deserialize_enum<V>(self, _name: &'static str, _variants: &'static [&'static str], _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        _visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
 
     fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         unimplemented!()
     }
@@ -131,7 +154,9 @@ struct SeqAccess {
 
 impl SeqAccess {
     fn new(vec: Vec<Value>) -> Self {
-        Self { iter: vec.into_iter() }
+        Self {
+            iter: vec.into_iter(),
+        }
     }
 }
 

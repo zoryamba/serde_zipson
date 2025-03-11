@@ -1,7 +1,7 @@
-pub mod de;
-pub mod ser;
-pub mod error;
 pub mod constants;
+pub mod de;
+pub mod error;
+pub mod ser;
 pub mod value;
 
 #[cfg(test)]

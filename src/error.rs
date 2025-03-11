@@ -60,7 +60,7 @@ impl Display for Error {
         match self {
             Error::Message(msg) => formatter.write_str(msg),
             Error::Eof => formatter.write_str("unexpected end of input"),
-            _ => formatter.write_str("unhandled error")
+            _ => formatter.write_str("unhandled error"),
         }
     }
 }

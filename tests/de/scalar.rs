@@ -1,5 +1,9 @@
 use crate::de::test_parse;
-use serde_zipson::value::{Number::{Float, Int}, Value};
+
+use serde_zipson::value::{
+    Number::{Float, Int},
+    Value,
+};
 
 #[test]
 fn test_null() {
@@ -51,23 +55,29 @@ fn test_big_integer() {
 
 #[test]
 fn test_unreferenced_integer() {
-    test_parse("|¤zÊ¤z÷", Value::Array(vec![
-        Value::Number(Int(61)),
-        Value::Number(Int(1)),
-        Value::Number(Int(61)),
-    ]));
+    test_parse(
+        "|¤zÊ¤z÷",
+        Value::Array(vec![
+            Value::Number(Int(61)),
+            Value::Number(Int(1)),
+            Value::Number(Int(61)),
+        ]),
+    );
 }
 
 #[test]
 fn test_ref_integer() {
-    test_parse("|¢1n¢3aº0º1º0º1÷", Value::Array(vec![
-        Value::Number(Int(111)),
-        Value::Number(Int(222)),
-        Value::Number(Int(111)),
-        Value::Number(Int(222)),
-        Value::Number(Int(111)),
-        Value::Number(Int(222)),
-    ]));
+    test_parse(
+        "|¢1n¢3aº0º1º0º1÷",
+        Value::Array(vec![
+            Value::Number(Int(111)),
+            Value::Number(Int(222)),
+            Value::Number(Int(111)),
+            Value::Number(Int(222)),
+            Value::Number(Int(111)),
+            Value::Number(Int(222)),
+        ]),
+    );
 }
 
 #[test]
@@ -93,23 +103,29 @@ fn test_float_full_precision() {
 
 #[test]
 fn test_unreferenced_float() {
-    test_parse("|¥1,1£1c.1cÝ0÷", Value::Array(vec![
-        Value::Number(Float(1.1)),
-        Value::Number(Float(100.1)),
-        Value::Number(Float(100.1)),
-    ]));
+    test_parse(
+        "|¥1,1£1c.1cÝ0÷",
+        Value::Array(vec![
+            Value::Number(Float(1.1)),
+            Value::Number(Float(100.1)),
+            Value::Number(Float(100.1)),
+        ]),
+    );
 }
 
 #[test]
 fn test_ref_float() {
-    test_parse("|£1n.1c£3a.3EÝ0Ý1Ý0Ý1÷", Value::Array(vec![
-        Value::Number(Float(111.1)),
-        Value::Number(Float(222.2)),
-        Value::Number(Float(111.1)),
-        Value::Number(Float(222.2)),
-        Value::Number(Float(111.1)),
-        Value::Number(Float(222.2)),
-    ]));
+    test_parse(
+        "|£1n.1c£3a.3EÝ0Ý1Ý0Ý1÷",
+        Value::Array(vec![
+            Value::Number(Float(111.1)),
+            Value::Number(Float(222.2)),
+            Value::Number(Float(111.1)),
+            Value::Number(Float(222.2)),
+            Value::Number(Float(111.1)),
+            Value::Number(Float(222.2)),
+        ]),
+    );
 }
 
 #[test]
@@ -150,7 +166,13 @@ fn test_short_string_escape_token() {
 
 #[test]
 fn test_long_string() {
-    test_parse("¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨", Value::String("aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc".into()));
+    test_parse(
+        "¨aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc¨",
+        Value::String(
+            "aoasdfjalisruhgalsiuhfdlsajdlifuashrlifuhsaildjfsalkhglasurflasjdfklsandfasurliausnlc"
+                .into(),
+        ),
+    );
 }
 
 #[test]
@@ -180,23 +202,29 @@ fn test_long_string_escape_token() {
 
 #[test]
 fn test_unreferenced_string() {
-    test_parse("|´x´¨aaa¨ß0÷", Value::Array(vec![
-        Value::String("x".into()),
-        Value::String("aaa".into()),
-        Value::String("aaa".into()),
-    ]));
+    test_parse(
+        "|´x´¨aaa¨ß0÷",
+        Value::Array(vec![
+            Value::String("x".into()),
+            Value::String("aaa".into()),
+            Value::String("aaa".into()),
+        ]),
+    );
 }
 
 #[test]
 fn test_ref_string() {
-    test_parse("|¨aaa¨¨bbb¨ß0ß1ß0ß1÷", Value::Array(vec![
-        Value::String("aaa".into()),
-        Value::String("bbb".into()),
-        Value::String("aaa".into()),
-        Value::String("bbb".into()),
-        Value::String("aaa".into()),
-        Value::String("bbb".into()),
-    ]));
+    test_parse(
+        "|¨aaa¨¨bbb¨ß0ß1ß0ß1÷",
+        Value::Array(vec![
+            Value::String("aaa".into()),
+            Value::String("bbb".into()),
+            Value::String("aaa".into()),
+            Value::String("bbb".into()),
+            Value::String("aaa".into()),
+            Value::String("bbb".into()),
+        ]),
+    );
 }
 
 #[test]
@@ -206,23 +234,29 @@ fn test_string_date() {
 
 #[test]
 fn test_unreferenced_date() {
-    test_parse("|¿1øSyKTESt×0÷", Value::Array(vec![
-        Value::String("1970-01-01T00:00:00.001Z".into()),
-        Value::String("2022-02-24T04:31:00.111Z".into()),
-        Value::String("2022-02-24T04:31:00.111Z".into()),
-    ]));
+    test_parse(
+        "|¿1øSyKTESt×0÷",
+        Value::Array(vec![
+            Value::String("1970-01-01T00:00:00.001Z".into()),
+            Value::String("2022-02-24T04:31:00.111Z".into()),
+            Value::String("2022-02-24T04:31:00.111Z".into()),
+        ]),
+    );
 }
 
 #[test]
 fn test_ref_date() {
-    test_parse("|øSyKTEStøSyKTEUg×0×1×0×1÷", Value::Array(vec![
-        Value::String("2022-02-24T04:31:00.111Z".into()),
-        Value::String("2022-02-24T04:31:00.222Z".into()),
-        Value::String("2022-02-24T04:31:00.111Z".into()),
-        Value::String("2022-02-24T04:31:00.222Z".into()),
-        Value::String("2022-02-24T04:31:00.111Z".into()),
-        Value::String("2022-02-24T04:31:00.222Z".into()),
-    ]));
+    test_parse(
+        "|øSyKTEStøSyKTEUg×0×1×0×1÷",
+        Value::Array(vec![
+            Value::String("2022-02-24T04:31:00.111Z".into()),
+            Value::String("2022-02-24T04:31:00.222Z".into()),
+            Value::String("2022-02-24T04:31:00.111Z".into()),
+            Value::String("2022-02-24T04:31:00.222Z".into()),
+            Value::String("2022-02-24T04:31:00.111Z".into()),
+            Value::String("2022-02-24T04:31:00.222Z".into()),
+        ]),
+    );
 }
 
 #[test]
@@ -232,21 +266,27 @@ fn test_string_lp_date() {
 
 #[test]
 fn test_unreferenced_lp_date() {
-    test_parse("|ÿ6±1739mü0÷", Value::Array(vec![
-        Value::String("1970-01-01T00:10:00.000Z".into()),
-        Value::String("2022-02-24T04:30:00.000Z".into()),
-        Value::String("2022-02-24T04:30:00.000Z".into()),
-    ]));
+    test_parse(
+        "|ÿ6±1739mü0÷",
+        Value::Array(vec![
+            Value::String("1970-01-01T00:10:00.000Z".into()),
+            Value::String("2022-02-24T04:30:00.000Z".into()),
+            Value::String("2022-02-24T04:30:00.000Z".into()),
+        ]),
+    );
 }
 
 #[test]
 fn test_ref_lp_date() {
-    test_parse("|±1739m±1739sü0ü1ü0ü1÷", Value::Array(vec![
-        Value::String("2022-02-24T04:30:00.000Z".into()),
-        Value::String("2022-02-24T04:40:00.000Z".into()),
-        Value::String("2022-02-24T04:30:00.000Z".into()),
-        Value::String("2022-02-24T04:40:00.000Z".into()),
-        Value::String("2022-02-24T04:30:00.000Z".into()),
-        Value::String("2022-02-24T04:40:00.000Z".into()),
-    ]));
+    test_parse(
+        "|±1739m±1739sü0ü1ü0ü1÷",
+        Value::Array(vec![
+            Value::String("2022-02-24T04:30:00.000Z".into()),
+            Value::String("2022-02-24T04:40:00.000Z".into()),
+            Value::String("2022-02-24T04:30:00.000Z".into()),
+            Value::String("2022-02-24T04:40:00.000Z".into()),
+            Value::String("2022-02-24T04:30:00.000Z".into()),
+            Value::String("2022-02-24T04:40:00.000Z".into()),
+        ]),
+    );
 }
