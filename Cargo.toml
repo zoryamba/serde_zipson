@@ -11,4 +11,7 @@ chrono = "0.4.38"
 indexmap = { version = "2.6.0", features = ["serde"] }
 lazy_static = "1.5.0"
 regex = "1.11.0"
-serde = "1.0.210"
+serde = { version = "1.0.210", default-features = false }
+
+[dev-dependencies]
+serde = { version = "1.0.210", features = ["derive"] }

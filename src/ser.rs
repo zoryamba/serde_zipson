@@ -306,8 +306,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     type SerializeTuple = SerializeSeq<'a>;
     type SerializeTupleStruct = SerializeSeq<'a>;
     type SerializeTupleVariant = Self;
-    type SerializeMap = Self;
-    type SerializeStruct = Self;
+    type SerializeMap = SerializeSeq<'a>;
+    type SerializeStruct = SerializeSeq<'a>;
     type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
@@ -499,11 +499,17 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         self.output.push(OBJECT_START_TOKEN);
-        Ok(self)
+        Ok(SerializeSeq {
+            output: &mut self.output,
+            index: self.index.clone(),
+            full_precision_floats: self.full_precision_floats,
+            detect_utc_timestamps: self.detect_utc_timestamps,
+            last_value: None,
+            repeat_count: 0,
+        })
     }
 
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        // TODO: serialize structs
         self.serialize_map(Some(len))
     }
 
@@ -651,7 +657,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeMap for &'a mut Serializer {
+impl<'a> ser::SerializeMap for SerializeSeq<'_> {
     type Ok = ();
     type Error = Error;
 
@@ -659,14 +665,30 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        key.serialize(&mut **self)
+        let key_string = to_string_nested(
+            &key,
+            self.full_precision_floats,
+            self.detect_utc_timestamps,
+            self.index.clone(),
+        )?;
+        self.output.push_str(&key_string);
+
+        Ok(())
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut **self)
+        let value_string = to_string_nested(
+            &value,
+            self.full_precision_floats,
+            self.detect_utc_timestamps,
+            self.index.clone(),
+        )?;
+        self.output.push_str(&value_string);
+
+        Ok(())
     }
 
     fn end(self) -> Result<()> {
@@ -675,20 +697,35 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     }
 }
 
-// TODO: serialize structs
-impl<'a> ser::SerializeStruct for &'a mut Serializer {
+impl<'a> ser::SerializeStruct for SerializeSeq<'_> {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!()
+        let field_string = to_string_nested(
+            &key,
+            self.full_precision_floats,
+            self.detect_utc_timestamps,
+            self.index.clone(),
+        )?;
+        self.output.push_str(&field_string);
+        let value_string = to_string_nested(
+            &value,
+            self.full_precision_floats,
+            self.detect_utc_timestamps,
+            self.index.clone(),
+        )?;
+        self.output.push_str(&value_string);
+
+        Ok(())
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        self.output.push(OBJECT_END_TOKEN);
+        Ok(())
     }
 }
 

@@ -4,7 +4,7 @@ use indexmap::{indexmap, IndexMap};
 use serde_zipson::value::{Number, Value};
 
 #[test]
-fn test_empty_object() {
+fn test_empty() {
     test_stringify(Value::Object(IndexMap::new()), "{}");
 }
 
