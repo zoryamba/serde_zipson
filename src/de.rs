@@ -58,18 +58,20 @@ impl<'de> Deserializer<'de> {
         V: Visitor<'de>,
     {
         let token = self.next_char()?;
+
         match token {
             ch if (ch as u8) > INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_LOWER
                 && (ch as u8) < INTEGER_SMALL_TOKEN_EXCLUSIVE_BOUND_UPPER =>
             {
                 visitor.visit_i16(ch as i16 - INTEGER_SMALL_TOKEN_OFFSET)
             }
-            UNREFERENCED_INTEGER_TOKEN => visitor.visit_i64(self.parse_integer()?),
             INTEGER_TOKEN => {
-                let val = self.parse_integer()?;
-                self.index.integers.push(val);
-                visitor.visit_i64(val)
+                let value = self.parse_integer()?;
+                self.index.integers.push(value);
+                visitor.visit_i64(value)
             }
+            UNREFERENCED_INTEGER_TOKEN => visitor.visit_i64(self.parse_integer()?),
+            REF_INTEGER_TOKEN => self.deserialize_ref_integer(visitor),
             _ => Err(Error::ExpectedInteger),
         }
     }
@@ -78,7 +80,6 @@ impl<'de> Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
 
         visitor.visit_i64(*self.index.integers.get(ref_index).unwrap())
@@ -141,23 +142,28 @@ impl<'de> Deserializer<'de> {
         Ok(value)
     }
 
-    fn deserialize_float(&mut self) -> Result<f64> {
+    fn deserialize_float<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
         let token = self.next_char()?;
 
-        let value = self.parse_float()?;
-
-        if token == FLOAT_TOKEN {
-            self.index.floats.push(value);
+        match token {
+            FLOAT_TOKEN => {
+                let value = self.parse_float()?;
+                self.index.floats.push(value);
+                visitor.visit_f64(value)
+            }
+            UNREFERENCED_FLOAT_TOKEN => visitor.visit_f64(self.parse_float()?),
+            REF_FLOAT_TOKEN => self.deserialize_ref_float(visitor),
+            _ => Err(Error::ExpectedFloat),
         }
-
-        Ok(value)
     }
 
     fn deserialize_ref_float<V>(&mut self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
 
         visitor.visit_f64(*self.index.floats.get(ref_index).unwrap())
@@ -207,52 +213,69 @@ impl<'de> Deserializer<'de> {
         Ok(res)
     }
 
+    fn deserialize_string<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let token = self.peek_char()?;
+
+        match token {
+            STRING_TOKEN => {
+                let value = self.parse_string()?;
+                self.index.strings.push(value.clone());
+                visitor.visit_string(value)
+            }
+            UNREFERENCED_STRING_TOKEN => visitor.visit_string(self.parse_string()?),
+            REF_STRING_TOKEN => {
+                self.next_char()?;
+                self.deserialize_ref_string(visitor)
+            }
+            _ => Err(Error::ExpectedString),
+        }
+    }
+
+    fn deserialize_ref_string<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let ref_index = self.parse_integer()? as usize;
+
+        visitor.visit_string(self.index.strings.get(ref_index).unwrap().clone())
+    }
+
     fn parse_string(&mut self) -> Result<String> {
         let token = self.next_char()?;
 
-        match token {
-            REF_STRING_TOKEN => {
-                let ref_index = self.parse_integer()? as usize;
+        let mut chars: Vec<char> = vec![];
 
-                Ok(self.index.strings.get(ref_index).unwrap().clone())
+        loop {
+            let mut ch = self.next_char()?;
+            let mut escaped = 0;
+
+            while ch == ESCAPE_CHARACTER {
+                escaped += 1;
+                ch = self.next_char()?;
             }
-            _ => {
-                let mut chars: Vec<char> = vec![];
 
-                loop {
-                    let mut ch = self.next_char()?;
-                    let mut escaped = 0;
-
-                    while ch == ESCAPE_CHARACTER {
-                        escaped += 1;
-                        ch = self.next_char()?;
-                    }
-
-                    if escaped > 0 {
-                        for _ in 0..escaped / 2 {
-                            chars.push(ESCAPE_CHARACTER);
-                        }
-                        if escaped % 2 == 1 && ch != token {
-                            return Err(Error::ExpectedEscapedToken);
-                        }
-                    }
-
-                    if escaped % 2 == 0 && ch == token {
-                        break;
-                    }
-
-                    chars.push(ch);
+            if escaped > 0 {
+                for _ in 0..escaped / 2 {
+                    chars.push(ESCAPE_CHARACTER);
                 }
-
-                let res = String::from_iter(chars);
-
-                if token == STRING_TOKEN {
-                    self.index.strings.push(res.clone());
+                if escaped % 2 == 1 && ch != token {
+                    return Err(Error::ExpectedEscapedToken);
                 }
-
-                Ok(res)
             }
+
+            if escaped % 2 == 0 && ch == token {
+                break;
+            }
+
+            chars.push(ch);
         }
+
+        let res = String::from_iter(chars);
+
+        Ok(res)
     }
 
     fn deserialize_date<V>(&mut self, visitor: V) -> Result<V::Value>
@@ -261,6 +284,28 @@ impl<'de> Deserializer<'de> {
     {
         let token = self.next_char()?;
 
+        match token {
+            DATE_TOKEN => {
+                let value = self.parse_date()?;
+                self.index.dates.push(value.clone());
+                visitor.visit_string(value)
+            }
+            UNREFERENCED_DATE_TOKEN => visitor.visit_string(self.parse_date()?),
+            REF_DATE_TOKEN => self.deserialize_ref_date(visitor),
+            _ => Err(Error::ExpectedDate),
+        }
+    }
+
+    fn deserialize_ref_date<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let ref_index = self.parse_integer()? as usize;
+
+        visitor.visit_string(self.index.dates.get(ref_index).unwrap().clone())
+    }
+
+    fn parse_date(&mut self) -> Result<String> {
         let integer = self.parse_integer()?;
 
         let seconds = integer / 1000;
@@ -269,11 +314,7 @@ impl<'de> Deserializer<'de> {
         let dt: DateTime<Utc> = DateTime::from_timestamp(seconds, millis * 1_000_000).unwrap();
         let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
 
-        if token == DATE_TOKEN {
-            self.index.dates.push(value.clone());
-        }
-
-        visitor.visit_string(value)
+        Ok(value)
     }
 
     fn deserialize_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
@@ -282,36 +323,34 @@ impl<'de> Deserializer<'de> {
     {
         let token = self.next_char()?;
 
-        let integer = self.parse_integer()? * DATE_LOW_PRECISION as i64;
-
-        let dt: DateTime<Utc> = DateTime::from_timestamp_millis(integer).unwrap();
-        let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
-
-        if token == LP_DATE_TOKEN {
-            self.index.lp_dates.push(value.clone());
+        match token {
+            LP_DATE_TOKEN => {
+                let value = self.parse_lp_date()?;
+                self.index.lp_dates.push(value.clone());
+                visitor.visit_string(value)
+            }
+            UNREFERENCED_LP_DATE_TOKEN => visitor.visit_string(self.parse_lp_date()?),
+            REF_LP_DATE_TOKEN => self.deserialize_ref_lp_date(visitor),
+            _ => Err(Error::ExpectedLpDate),
         }
-
-        visitor.visit_string(value)
-    }
-
-    fn deserialize_ref_date<V>(&mut self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        self.next_char()?;
-        let ref_index = self.parse_integer()? as usize;
-
-        visitor.visit_string(self.index.dates.get(ref_index).unwrap().clone())
     }
 
     fn deserialize_ref_lp_date<V>(&mut self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        self.next_char()?;
         let ref_index = self.parse_integer()? as usize;
 
         visitor.visit_string(self.index.lp_dates.get(ref_index).unwrap().clone())
+    }
+
+    fn parse_lp_date(&mut self) -> Result<String> {
+        let integer = self.parse_integer()? * DATE_LOW_PRECISION as i64;
+
+        let dt: DateTime<Utc> = DateTime::from_timestamp_millis(integer).unwrap();
+        let value = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
+
+        Ok(value)
     }
 }
 
@@ -400,21 +439,19 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             {
                 self.deserialize_integer(visitor)
             }
-            UNREFERENCED_INTEGER_TOKEN => self.deserialize_integer(visitor),
-            INTEGER_TOKEN => self.deserialize_integer(visitor),
-            REF_INTEGER_TOKEN => self.deserialize_ref_integer(visitor),
-            UNREFERENCED_FLOAT_TOKEN => self.deserialize_f64(visitor),
-            FLOAT_TOKEN => self.deserialize_f64(visitor),
-            REF_FLOAT_TOKEN => self.deserialize_ref_float(visitor),
-            UNREFERENCED_STRING_TOKEN => self.deserialize_str(visitor),
-            STRING_TOKEN => self.deserialize_str(visitor),
-            REF_STRING_TOKEN => self.deserialize_str(visitor),
-            DATE_TOKEN => self.deserialize_date(visitor),
-            UNREFERENCED_DATE_TOKEN => self.deserialize_date(visitor),
-            REF_DATE_TOKEN => self.deserialize_ref_date(visitor),
-            LP_DATE_TOKEN => self.deserialize_lp_date(visitor),
-            UNREFERENCED_LP_DATE_TOKEN => self.deserialize_lp_date(visitor),
-            REF_LP_DATE_TOKEN => self.deserialize_ref_lp_date(visitor),
+            INTEGER_TOKEN | UNREFERENCED_INTEGER_TOKEN | REF_INTEGER_TOKEN => {
+                self.deserialize_integer(visitor)
+            }
+            FLOAT_TOKEN | UNREFERENCED_FLOAT_TOKEN | REF_FLOAT_TOKEN => {
+                self.deserialize_float(visitor)
+            }
+            STRING_TOKEN | UNREFERENCED_STRING_TOKEN | REF_STRING_TOKEN => {
+                self.deserialize_str(visitor)
+            }
+            DATE_TOKEN | UNREFERENCED_DATE_TOKEN | REF_DATE_TOKEN => self.deserialize_date(visitor),
+            LP_DATE_TOKEN | UNREFERENCED_LP_DATE_TOKEN | REF_LP_DATE_TOKEN => {
+                self.deserialize_lp_date(visitor)
+            }
             ARRAY_START_TOKEN => self.deserialize_seq(visitor),
             OBJECT_START_TOKEN => self.deserialize_map(visitor),
             _ => Err(Error::Syntax),
@@ -500,7 +537,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_f64(self.deserialize_float()?)
+        self.deserialize_float(visitor)
     }
 
     fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>
@@ -515,7 +552,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_string(self.parse_string()?)
+        self.deserialize_string(visitor)
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
