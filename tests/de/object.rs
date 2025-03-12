@@ -5,7 +5,7 @@ use serde_zipson;
 use serde_zipson::value::{Number, Value};
 
 #[test]
-fn test_empty_object() {
+fn test_empty() {
     test_parse("{}", Value::Object(IndexMap::new()));
 }
 

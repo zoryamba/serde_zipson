@@ -40,6 +40,7 @@ impl InvertedIndex {
 
 pub struct Serializer {
     output: String,
+    // TODO: pass serializer to SerializeSeq and get rid of Rc<RefCell<_>>
     index: Rc<RefCell<InvertedIndex>>,
     full_precision_floats: bool,
     detect_utc_timestamps: bool,
