@@ -110,3 +110,51 @@ fn test_nested() {
         }
     );
 }
+
+#[test]
+fn nest_newtype() {
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct StringNewType(String);
+
+    test_parse("¨string¨", StringNewType("string".into()));
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct IntNewType(i64);
+
+    test_parse("¢1z", IntNewType(123));
+}
+
+#[test]
+fn nest_newtype_nested() {
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct ObjectNewType(NestedObject);
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct NestedObject {
+        x: i64,
+        y: i64,
+        float: f64,
+        z: String,
+        i: String,
+        longkey: bool,
+        nope: Option<()>,
+        yep: Option<Value>,
+    }
+
+    test_parse(
+        "{´x´Ê´y´¢EMnFO¨float¨£0.52´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§¨yep¨{´5´|§÷¨string¨¨\"\"asoidj{}sidofj¨}}",
+        ObjectNewType(NestedObject {
+            x: 1,
+            y: 212301230,
+            float: 0.312,
+            z: "asdfioj{{}}".into(),
+            i: "".into(),
+            longkey: true,
+            nope: None,
+            yep: Some(Value::Object(indexmap! {
+                "5".into() => Value::Array(vec![Value::Null]),
+                "string".into() => Value::String("\"\"asoidj{}sidofj".into()),
+            })),
+        }),
+    );
+}

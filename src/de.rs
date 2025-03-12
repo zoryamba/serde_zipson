@@ -430,7 +430,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.peek_char()? {
+        let token = self.peek_char()?;
+
+        match token {
             NULL_TOKEN => self.deserialize_unit(visitor),
             BOOLEAN_TRUE_TOKEN => self.deserialize_bool(visitor),
             BOOLEAN_FALSE_TOKEN => self.deserialize_bool(visitor),
@@ -605,11 +607,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_newtype_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
