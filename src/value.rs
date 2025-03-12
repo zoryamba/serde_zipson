@@ -43,108 +43,20 @@ impl<'de> de::Deserializer<'de> for Value {
     }
 
     forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 str string unit seq tuple map
-    }
-
-    fn deserialize_char<V>(self, _visitor: V) -> crate::error::Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        // Parse a string, check that it is one character, call `visit_char`.
-        unimplemented!()
-    }
-
-    fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
-    }
-
-    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
-    }
-
-    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
-    }
-
-    fn deserialize_unit_struct<V>(
-        self,
-        _name: &'static str,
-        _visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct seq tuple
+        tuple_struct map struct enum identifier ignored_any
     }
 
     fn deserialize_newtype_struct<V>(
         self,
         _name: &'static str,
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
-    }
-
-    fn deserialize_tuple_struct<V>(
-        self,
-        _name: &'static str,
-        _len: usize,
-        _visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
-    }
-
-    fn deserialize_struct<V>(
-        self,
-        _name: &'static str,
-        _fields: &'static [&'static str],
-        _visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
-    }
-
-    fn deserialize_enum<V>(
-        self,
-        _name: &'static str,
-        _variants: &'static [&'static str],
-        _visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
-    }
-
-    fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
-    }
-
-    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        unimplemented!()
+        visitor.visit_newtype_struct(self)
     }
 }
 

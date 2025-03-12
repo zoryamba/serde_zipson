@@ -165,3 +165,46 @@ fn test_unit() {
 
     test_stringify(UnitStruct(()), "§");
 }
+
+#[test]
+fn test_tuple() {
+    #[derive(Serialize)]
+    struct TupleStruct(String, i64, UnitStruct, NestedObject);
+
+    #[derive(Serialize)]
+    struct UnitStruct(());
+
+    #[derive(Serialize)]
+    struct NestedObject {
+        x: i64,
+        y: i64,
+        float: f64,
+        z: String,
+        i: String,
+        longkey: bool,
+        nope: (),
+        yep: Value,
+    }
+
+    test_stringify(
+        TupleStruct(
+            "string".into(),
+            212301230,
+            UnitStruct(()),
+            NestedObject {
+                x: 1,
+                y: 212301230,
+                float: 0.312,
+                z: "asdfioj{{}}".into(),
+                i: "".into(),
+                longkey: true,
+                nope: (),
+                yep: Value::Object(indexmap! {
+                    "5".into() => Value::Array(vec![Value::Null]),
+                    "string".into() => Value::String("\"\"asoidj{}sidofj".into()),
+                }),
+            }
+        ),
+        "|¨string¨¢EMnFO§{´x´Ê´y´º0¨float¨£0.52´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§¨yep¨{´5´|§÷ß0¨\"\"asoidj{}sidofj¨}}÷",
+    );
+}

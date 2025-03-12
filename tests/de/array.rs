@@ -1,6 +1,7 @@
 use crate::de::test_parse;
 
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
+use serde::Deserialize;
 use serde_zipson::value::{Number, Value};
 
 #[test]
@@ -252,5 +253,52 @@ fn test_repeat_indexed() {
             Value::String("xyz".into()),
             Value::String("xyz".into()),
         ]),
+    );
+}
+
+#[test]
+fn test_tuple() {
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct TupleStruct {
+        field: (String, i64, UnitStruct, NestedObject),
+    }
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct UnitStruct(());
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct NestedObject {
+        x: i64,
+        y: i64,
+        float: f64,
+        z: String,
+        i: String,
+        longkey: bool,
+        nope: Option<()>,
+        yep: Value,
+    }
+
+    test_parse(
+        "{¨field¨|¨string¨¢EMnFO§{´x´Ê´y´º0¨float¨£0.52´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§¨yep¨{´5´|§÷ß1¨\"\"asoidj{}sidofj¨}}÷}",
+        TupleStruct{
+            field: (
+                "string".into(),
+                212301230,
+                UnitStruct(()),
+                NestedObject {
+                    x: 1,
+                    y: 212301230,
+                    float: 0.312,
+                    z: "asdfioj{{}}".into(),
+                    i: "".into(),
+                    longkey: true,
+                    nope: None,
+                    yep: Value::Object(indexmap! {
+                        "5".into() => Value::Array(vec![Value::Null]),
+                        "string".into() => Value::String("\"\"asoidj{}sidofj".into()),
+                    }),
+                }
+            )
+        },
     );
 }
