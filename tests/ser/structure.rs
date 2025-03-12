@@ -109,3 +109,51 @@ fn test_nested() {
         ],
     }, "{´x´Ê´y´¢EMnFO´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§¨float¨£TQZ.6y¨nest¨{´x´Ê´y´º0ß3£0.52´z´ß0´i´´´ß1»ß2§¨yep¨{´5´|§÷¨string¨¨\"\"asoidj{}sidofj¨}}¨array_nest¨|{´x´Ê´y´º0´z´ß0´i´´´ß1»ß2§}÷}");
 }
+
+#[test]
+fn nest_newtype() {
+    #[derive(Serialize)]
+    struct StringNewType(String);
+
+    test_stringify(StringNewType("string".into()), "¨string¨");
+
+    #[derive(Serialize)]
+    struct IntNewType(i64);
+
+    test_stringify(IntNewType(123), "¢1z");
+}
+
+#[test]
+fn nest_newtype_nested() {
+    #[derive(Serialize)]
+    struct ObjectNewType(NestedObject);
+
+    #[derive(Serialize)]
+    struct NestedObject {
+        x: i64,
+        y: i64,
+        float: f64,
+        z: String,
+        i: String,
+        longkey: bool,
+        nope: Option<()>,
+        yep: Option<Value>,
+    }
+
+    test_stringify(
+        ObjectNewType(NestedObject {
+            x: 1,
+            y: 212301230,
+            float: 0.312,
+            z: "asdfioj{{}}".into(),
+            i: "".into(),
+            longkey: true,
+            nope: None,
+            yep: Some(Value::Object(indexmap! {
+                "5".into() => Value::Array(vec![Value::Null]),
+                "string".into() => Value::String("\"\"asoidj{}sidofj".into()),
+            })),
+        }),
+        "{´x´Ê´y´¢EMnFO¨float¨£0.52´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§¨yep¨{´5´|§÷¨string¨¨\"\"asoidj{}sidofj¨}}",
+    );
+}
