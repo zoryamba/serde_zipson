@@ -157,3 +157,11 @@ fn nest_newtype_nested() {
         "{´x´Ê´y´¢EMnFO¨float¨£0.52´z´¨asdfioj{{}}¨´i´´´¨longkey¨»¨nope¨§¨yep¨{´5´|§÷¨string¨¨\"\"asoidj{}sidofj¨}}",
     );
 }
+
+#[test]
+fn test_unit() {
+    #[derive(Serialize)]
+    struct UnitStruct(());
+
+    test_stringify(UnitStruct(()), "§");
+}

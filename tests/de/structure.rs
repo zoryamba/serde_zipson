@@ -158,3 +158,11 @@ fn nest_newtype_nested() {
         }),
     );
 }
+
+#[test]
+fn test_unit() {
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct UnitStruct(());
+
+    test_parse("§", UnitStruct(()));
+}
