@@ -13,7 +13,7 @@ use crate::error::{Error, Result};
 use crate::value::{Number, Value};
 use chrono::{DateTime, SecondsFormat, Utc};
 use indexmap::IndexMap;
-use serde::de::{self, Deserialize, DeserializeSeed, Visitor};
+use serde::de::{self, Deserialize, DeserializeSeed, IntoDeserializer, Visitor};
 use std::fmt;
 
 pub struct OrderedIndex {
@@ -667,13 +667,24 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self,
         _name: &'static str,
         _variants: &'static [&'static str],
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        // TODO: deserialize enums
-        unimplemented!()
+        if self.peek_char()? == STRING_TOKEN {
+            visitor.visit_enum(self.parse_string()?.into_deserializer())
+        } else if self.next_char()? == OBJECT_START_TOKEN {
+            let value = visitor.visit_enum(&mut *self)?;
+
+            if self.next_char()? == OBJECT_END_TOKEN {
+                Ok(value)
+            } else {
+                Err(Error::ExpectedMapEnd)
+            }
+        } else {
+            Err(Error::ExpectedEnum)
+        }
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
@@ -830,5 +841,48 @@ where
         Ok(t)
     } else {
         Err(Error::TrailingCharacters)
+    }
+}
+
+impl<'de, 'a> de::EnumAccess<'de> for &'a mut Deserializer<'de> {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let val = seed.deserialize(&mut *self)?;
+
+        Ok((val, self))
+    }
+}
+
+impl<'de, 'a> de::VariantAccess<'de> for &'a mut Deserializer<'de> {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<()> {
+        Err(Error::ExpectedString)
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        seed.deserialize(self)
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        de::Deserializer::deserialize_tuple(self, len, visitor)
+    }
+
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        de::Deserializer::deserialize_map(self, visitor)
     }
 }
