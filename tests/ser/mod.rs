@@ -2,6 +2,7 @@ use serde::Serialize;
 
 pub mod array;
 pub mod array_mixed;
+pub mod enumeration;
 pub mod object;
 pub mod scalar;
 pub mod structure;

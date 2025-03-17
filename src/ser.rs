@@ -453,14 +453,17 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
-        _value: &T,
+        variant: &'static str,
+        value: &T,
     ) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        // TODO: serialize enums
-        unimplemented!()
+        self.output.push(OBJECT_START_TOKEN);
+        variant.serialize(&mut *self)?;
+        value.serialize(&mut *self)?;
+        self.output.push(OBJECT_END_TOKEN);
+        Ok(())
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
@@ -491,11 +494,13 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        // TODO: serialize enums
-        unimplemented!()
+        self.output.push(OBJECT_START_TOKEN);
+        variant.serialize(&mut *self)?;
+        self.output.push(ARRAY_START_TOKEN);
+        Ok(self)
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -518,11 +523,13 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        // TODO: serialize enums
-        unimplemented!()
+        self.output.push(OBJECT_START_TOKEN);
+        variant.serialize(&mut *self)?;
+        self.output.push(OBJECT_START_TOKEN);
+        Ok(self)
     }
 }
 
@@ -641,20 +648,21 @@ impl<'a> ser::SerializeTupleStruct for SerializeSeq<'_> {
     }
 }
 
-// TODO: serialize enums
 impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        self.output.push(ARRAY_END_TOKEN);
+        self.output.push(OBJECT_END_TOKEN);
+        Ok(())
     }
 }
 
@@ -730,20 +738,22 @@ impl<'a> ser::SerializeStruct for SerializeSeq<'_> {
     }
 }
 
-// TODO: serialize enums
 impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!()
+        key.serialize(&mut **self)?;
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        self.output.push(OBJECT_END_TOKEN);
+        self.output.push(OBJECT_END_TOKEN);
+        Ok(())
     }
 }
 

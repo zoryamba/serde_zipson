@@ -1,41 +1,41 @@
-use crate::de::test_parse;
+use crate::ser::test_stringify;
 
-use serde::Deserialize;
+use serde::Serialize;
 
 #[test]
 fn test_unit_like() {
-    #[derive(Deserialize, PartialEq, Debug)]
+    #[derive(Serialize)]
     enum UnitLike {
         String,
         Int,
         Float,
     }
 
-    test_parse("¨String¨", UnitLike::String);
-    test_parse("¨Int¨", UnitLike::Int);
-    test_parse("¨Float¨", UnitLike::Float);
+    test_stringify(UnitLike::String, "¨String¨");
+    test_stringify(UnitLike::Int, "¨Int¨");
+    test_stringify(UnitLike::Float, "¨Float¨");
 }
 
 #[test]
 fn test_tuple_like() {
-    #[derive(Deserialize, PartialEq, Debug)]
+    #[derive(Serialize)]
     enum TupleLike {
         Value(String, i64, f64),
         Unit(()),
         Empty(),
     }
 
-    test_parse("{¨Unit¨§}", TupleLike::Unit(()));
-    test_parse("{¨Empty¨|÷}", TupleLike::Empty());
-    test_parse(
-        "{¨Value¨|¨string¨¢EMnFO£0.52÷}",
+    test_stringify(TupleLike::Unit(()), "{¨Unit¨§}");
+    test_stringify(TupleLike::Empty(), "{¨Empty¨|÷}");
+    test_stringify(
         TupleLike::Value("string".to_string(), 212301230, 0.312),
+        "{¨Value¨|¨string¨¢EMnFO£0.52÷}",
     );
 }
 
 #[test]
 fn test_struct_like() {
-    #[derive(Deserialize, PartialEq, Debug)]
+    #[derive(Serialize)]
     enum StructLike {
         Value {
             string: String,
@@ -44,20 +44,20 @@ fn test_struct_like() {
         },
         Empty {},
     }
-    test_parse("{¨Empty¨{}}", StructLike::Empty {});
-    test_parse(
-        "{¨Value¨{¨string¨ß1¨int¨¢EMnFO¨float¨£0.52}}",
+    test_stringify(StructLike::Empty {}, "{¨Empty¨{}}");
+    test_stringify(
         StructLike::Value {
             string: "string".to_string(),
             int: 212301230,
             float: 0.312,
         },
+        "{¨Value¨{¨string¨ß1¨int¨¢EMnFO¨float¨£0.52}}",
     );
 }
 
 #[test]
 fn test_nested() {
-    #[derive(Deserialize, PartialEq, Debug)]
+    #[derive(Serialize)]
     enum StructLike {
         Value {
             string: String,
@@ -67,20 +67,19 @@ fn test_nested() {
         },
         None,
     }
-    #[derive(Deserialize, PartialEq, Debug)]
+    #[derive(Serialize)]
     enum TupleLike {
         Value(String, i64, f64),
-        None,
     }
 
-    test_parse("¨None¨", StructLike::None);
-    test_parse(
-        "{¨Value¨{¨string¨ß1¨int¨¢EMnFO¨float¨£0.52¨nested¨{ß0|ß1º0Ý0÷}}}",
+    test_stringify(StructLike::None, "¨None¨");
+    test_stringify(
         StructLike::Value {
             string: "string".to_string(),
             int: 212301230,
             float: 0.312,
             nested: TupleLike::Value("string".to_string(), 212301230, 0.312),
         },
+        "{¨Value¨{¨string¨ß1¨int¨¢EMnFO¨float¨£0.52¨nested¨{ß0|ß1º0Ý0÷}}}",
     );
 }
